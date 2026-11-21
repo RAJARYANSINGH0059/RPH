@@ -16,12 +16,19 @@ def _make_engine():
     settings = get_settings()
     kwargs: dict = {"pool_pre_ping": True}
     if settings.is_sqlite:
-        kwargs["connect_args"] = {"check_same_thread": False}
+        # local development / tests only (production is PostgreSQL): WAL + a generous busy timeout so concurrent dashboard
+        # reads never fail a long synthetic-case write with "database is locked"
+        kwargs["connect_args"] = {"check_same_thread": False, "timeout": 30}
     engine = create_engine(settings.sqlalchemy_url, **kwargs)
     if settings.is_sqlite:
         @event.listens_for(engine, "connect")
         def _fk_on(dbapi_conn, _record):  # pragma: no cover
             dbapi_conn.execute("PRAGMA foreign_keys=ON")
+            dbapi_conn.execute("PRAGMA busy_timeout=30000")
+            try:
+                dbapi_conn.execute("PRAGMA journal_mode=WAL")
+            except Exception:
+                pass
     return engine
 
 

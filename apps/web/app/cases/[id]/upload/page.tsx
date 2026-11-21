@@ -37,7 +37,7 @@ export default function UploadPage() {
     try { const r = await api(`/cases/${id}/files/${fileId}/remap`, { method: "POST", body: JSON.stringify({ mapping: mapping[fileId] || {} }) }); setResults([r]); await load(); }
     catch (err: any) { setError(err.message); } finally { setBusy(false); }
   }
-  const fileName = (fid: string) => files.find((f) => f.id === fid)?.original_name || fid;
+  const fileName = (fid: string) => files.find((f: any) => f.id === fid)?.original_name || fid;
 
   return (
     <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title="Upload evidence" subtitle="Drop files, read the preview, correct a column mapping if needed. Originals are never modified." pageKey="upload" step={runs.length ? "parse" : "upload"}>
@@ -53,7 +53,7 @@ export default function UploadPage() {
         <div className="grid gap-2 sm:grid-cols-4">{KINDS.map(([t, d, ic]) => <div key={t as string} className="flex gap-2 rounded-xl border border-line bg-card p-2.5 text-xs"><span className="text-accent">{ic}</span><div><div className="font-semibold">{t}</div><div className="text-ink-muted">{d}</div></div></div>)}</div>
         {busy && <div className="card flex items-center gap-3 text-sm" role="status"><span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />Uploading and parsing…</div>}
         {error && <div className="card flex gap-2 border-danger/30 bg-danger-soft text-sm text-danger" role="alert"><I.alert />{error}</div>}
-        {results.map((r) => (
+        {results.map((r: any) => (
           <div key={r.file.id} className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 font-semibold"><I.check className="text-ok" />{r.file.original_name} <span className="badge bg-panel">{r.file.detected_kind}</span><span className={`badge ${r.file.status === "parsed" ? "bg-ok-soft text-ok" : r.file.status === "failed" ? "bg-danger-soft text-danger" : "bg-saffron-soft text-warn"}`}>{r.file.status.replace("_", " ")}</span></div>
@@ -67,7 +67,7 @@ export default function UploadPage() {
               <details open={Object.keys(r.preview.mapping).length < 4}>
                 <summary className="cursor-pointer text-sm font-semibold">Column mapping <span className="font-normal text-ink-muted">— {Object.keys(r.preview.mapping).length} of {r.preview.headers.length} columns understood; change a mapping and re-parse if something is wrong</span></summary>
                 <div className="mt-2 grid gap-2 md:grid-cols-3 lg:grid-cols-4">
-                  {FIELDS.map(([f, label]) => (
+                  {FIELDS.map(([f, label]: [any, any]) => (
                     <label key={f} className="text-xs"><span className="text-ink-muted">{label}</span>
                       <select className="input mt-0.5" value={(mapping[r.file.id] || {})[f] ?? r.preview.mapping[f] ?? ""} onChange={(e) => setMapping({ ...mapping, [r.file.id]: { ...(mapping[r.file.id] || {}), [f]: e.target.value } })}>
                         <option value="">— not mapped —</option>{r.preview.headers.map((h: string) => <option key={h} value={h}>{h}</option>)}
@@ -78,15 +78,15 @@ export default function UploadPage() {
             )}
             {r.preview?.rows && <div className="overflow-x-auto rounded-lg border border-line"><table className="data"><thead><tr><th>Row</th>{r.preview.headers.map((h: string) => <th key={h}>{h}{Object.entries(r.preview.mapping).find(([, v]) => v === h) && <div className="font-normal normal-case text-accent">↳ {Object.entries(r.preview.mapping).find(([, v]) => v === h)![0].replace("_", " ")}</div>}</th>)}<th>Flags</th></tr></thead>
               <tbody>{r.preview.rows.map((row: any) => <tr key={row.row}><td className="text-xs text-ink-muted">{row.row}</td>{r.preview.headers.map((h: string) => <td key={h} className="whitespace-nowrap text-xs">{row.raw[h] ?? ""}</td>)}<td className="text-xs warn">{row.warnings.map((w: string) => w.replace(/_/g, " ")).join(", ")}</td></tr>)}</tbody></table></div>}
-            {r.preview?.snippets && <div className="space-y-1 text-xs"><div className="label">Extracted text (first blocks)</div>{r.preview.snippets.map((s: any, i: number) => <pre key={i} className="whitespace-pre-wrap rounded-lg bg-canvas p-2">[{Object.entries(s.locator).map(([k, v]) => `${k} ${v}`).join(", ")} · {s.method.replace("_", " ")}] {s.text}</pre>)}<div className="text-ink-muted">Indicators found: {Object.entries(r.preview.indicators || {}).map(([k, v]) => `${v} ${k}`).join(", ") || "none"}</div></div>}
+            {r.preview?.snippets && <div className="space-y-1 text-xs"><div className="label">Extracted text (first blocks)</div>{r.preview.snippets.map((s: any, i: number) => <pre key={i} className="whitespace-pre-wrap rounded-lg bg-canvas p-2">[{Object.entries(s.locator).map(([k, v]: [any, any]) => `${k} ${v}`).join(", ")} · {s.method.replace("_", " ")}] {s.text}</pre>)}<div className="text-ink-muted">Indicators found: {Object.entries(r.preview.indicators || {}).map(([k, v]: [any, any]) => `${v} ${k}`).join(", ") || "none"}</div></div>}
             {r.preview?.snippets && r.preview.snippets.some((x: any) => x.method === "ocr") && (
               <div className="rounded-xl border border-saffron/50 bg-saffron-soft/40 p-3 text-xs">
                 <div className="mb-1 flex items-center gap-2 font-semibold warn"><I.eye width={14} height={14} /> OCR output — needs human verification</div>
                 <p className="muted">Text below was read from an image by the OCR engine. Confidence is the engine&apos;s own estimate; compare against the original page before relying on any identifier.</p>
-                <ul className="mt-2 space-y-1">{r.preview.snippets.filter((x: any) => x.method === "ocr").map((x: any, i: number) => <li key={i} className="rounded-lg border border-line bg-card p-2"><div className="mono">{Object.entries(x.locator).map(([k, v]) => `${k} ${v}`).join(", ")}{x.ocr ? ` · ${x.ocr.engine} v${x.ocr.engine_version} · confidence ${x.ocr.confidence === null ? "n/a" : Math.round(x.ocr.confidence * 100) + "%"} · quality ${x.ocr.quality}` : ""}</div><pre className="mt-1 whitespace-pre-wrap">{x.text}</pre></li>)}</ul>
+                <ul className="mt-2 space-y-1">{r.preview.snippets.filter((x: any) => x.method === "ocr").map((x: any, i: number) => <li key={i} className="rounded-lg border border-line bg-card p-2"><div className="mono">{Object.entries(x.locator).map(([k, v]: [any, any]) => `${k} ${v}`).join(", ")}{x.ocr ? ` · ${x.ocr.engine} v${x.ocr.engine_version} · confidence ${x.ocr.confidence === null ? "n/a" : Math.round(x.ocr.confidence * 100) + "%"} · quality ${x.ocr.quality}` : ""}</div><pre className="mt-1 whitespace-pre-wrap">{x.text}</pre></li>)}</ul>
               </div>
             )}
-            {r.preview?.sample && <div className="text-xs text-ink-muted">{r.preview.observations} observations: {Object.entries(r.preview.by_type).map(([k, v]) => `${v} ${k}`).join(", ")}</div>}
+            {r.preview?.sample && <div className="text-xs text-ink-muted">{r.preview.observations} observations: {Object.entries(r.preview.by_type).map(([k, v]: [any, any]) => `${v} ${k}`).join(", ")}</div>}
             {r.preview?.error && <div className="text-xs text-danger">{r.preview.error}</div>}
           </div>
         ))}
@@ -95,7 +95,7 @@ export default function UploadPage() {
             <div className="px-4 py-3"><h2 className="font-semibold">Parse history</h2><p className="text-xs text-ink-muted">Every parse keeps the parser version so results are reproducible.</p></div>
             {runs.length === 0 ? <div className="px-4 pb-4 text-sm text-ink-muted">Nothing parsed yet.</div> : (
               <table className="data"><thead><tr><th>File</th><th>Parser</th><th>Result</th><th>Status</th><th>Warnings</th></tr></thead>
-                <tbody>{runs.map((r) => <tr key={r.id}><td className="font-medium">{fileName(r.source_file_id)}</td><td className="text-xs">{r.parser_name}@{r.parser_version}</td><td className="text-xs">{r.stats.transactions !== undefined ? `${r.stats.transactions} transactions · ${r.stats.ambiguous_dates} ambiguous dates · ${r.stats.duplicates} duplicates` : r.stats.observations !== undefined ? `${r.stats.observations} observations` : `${r.stats.blocks ?? 0} text blocks`}</td><td><span className={`badge ${r.status === "completed" ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"}`}>{r.status}</span></td><td className="text-xs warn">{(r.warnings || []).slice(0, 4).map((w: string) => w.replace(/_/g, " ")).join("; ")}</td></tr>)}</tbody></table>
+                <tbody>{runs.map((r: any) => <tr key={r.id}><td className="font-medium">{fileName(r.source_file_id)}</td><td className="text-xs">{r.parser_name}@{r.parser_version}</td><td className="text-xs">{r.stats.transactions !== undefined ? `${r.stats.transactions} transactions · ${r.stats.ambiguous_dates} ambiguous dates · ${r.stats.duplicates} duplicates` : r.stats.observations !== undefined ? `${r.stats.observations} observations` : `${r.stats.blocks ?? 0} text blocks`}</td><td><span className={`badge ${r.status === "completed" ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"}`}>{r.status}</span></td><td className="text-xs warn">{(r.warnings || []).slice(0, 4).map((w: string) => w.replace(/_/g, " ")).join("; ")}</td></tr>)}</tbody></table>
             )}
           </div>
         </State>

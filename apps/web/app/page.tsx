@@ -1,71 +1,58 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { MotionScene } from "@/components/motion";
 import { I } from "@/components/icons";
-import { api, API_BASE, getUser, setSession } from "@/lib/api";
+import { getUser, signInDemo } from "@/lib/api";
 
-const FEATURES = [
-  { icon: <I.upload />, t: "Ingest messy evidence", d: "Statements in any column layout, complaint PDFs, scans and screenshots (OCR), technical observations. Every value keeps its raw text and exact cell, row or page." },
-  { icon: <I.money />, t: "Follow the money", d: "Multi-hop fund paths with unresolved hops made explicit, duplicate and date warnings, balance checks, triage signals that always say why." },
-  { icon: <I.link />, t: "Correlate across cases", d: "Exact identifier and reference bridges between authorised cases; shared hosting stays a candidate with its counter-explanation." },
-  { icon: <I.report />, t: "Prepare defensible packs", d: "Source-backed PDF/JSON reports, restitution-readiness reconciliation and cooperation request packs with hashes." },
-];
-
-export default function SignIn() {
+function SignIn() {
   const router = useRouter();
-  const [email, setEmail] = useState("analyst@demo.local");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const params = useSearchParams();
   const [busy, setBusy] = useState(false);
-  const [health, setHealth] = useState<"checking" | "ready" | "down">("checking");
-  const check = () => api("/health/ready").then((h) => setHealth(h.status === "ready" ? "ready" : "down")).catch(() => setHealth("down"));
-  useEffect(() => { if (getUser()) router.replace("/cases"); check(); }, [router]);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault(); setBusy(true); setError(null);
-    try { const r = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); setSession(r.access_token, r.user); router.push("/cases"); }
-    catch (err: any) { setError(err.status === 401 ? "Email or password is incorrect." : err.status === 0 ? "The API is not reachable. Check the API URL below and that the backend is running." : err.message || "Sign-in failed"); }
-    finally { setBusy(false); }
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (getUser() && !params.get("expired")) router.replace("/overview"); }, [router, params]);
+  async function enter() {
+    setBusy(true); setError(null);
+    try { await signInDemo(); router.push("/overview"); }
+    catch (e: any) { setError(e.message || "Could not start the demo session."); setBusy(false); }
   }
-
   return (
-    <main className="min-h-screen lg:grid lg:grid-cols-[1.15fr_1fr]">
-      <section className="jaali relative hidden overflow-hidden bg-rail px-10 py-12 text-rail-text lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full border border-white/10" aria-hidden />
-        <div className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full border border-saffron/30" aria-hidden />
-        <div className="pointer-events-none absolute -bottom-32 -left-20 h-[28rem] w-[28rem] rounded-full border border-accent/30" aria-hidden />
+    <main className="min-h-screen md:grid md:grid-cols-[1.05fr_1fr]">
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-rail p-10 text-rail-text md:flex jaali">
         <div>
-          <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white shadow"><I.shield /></div><div><div className="text-lg font-bold text-white">PS05-X</div><div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-rail-text/70">Investigative prototype</div></div></div>
-          <h1 className="mt-10 max-w-xl text-4xl font-extrabold leading-tight tracking-tight text-white">Evidence-centred <span className="text-saffron">money-trail</span> and infrastructure investigation</h1>
-          <p className="mt-4 max-w-lg text-base text-rail-text/85">A workstation for cyber-enabled financial fraud: ingest bank statements, complaints and domain/IP observations into a time-aware evidence graph where every link can be checked, challenged, correlated across cases and exported.</p>
-          <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-            {FEATURES.map((f) => <li key={f.t} className="rounded-xl border border-white/10 bg-white/5 p-3"><div className="flex items-center gap-2 text-white"><span className="text-saffron">{f.icon}</span><span className="font-semibold">{f.t}</span></div><p className="mt-1 text-xs text-rail-text/80">{f.d}</p></li>)}
+          <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-white shadow"><I.shield width={22} height={22} /></div><div><div className="text-xl font-bold tracking-tight text-white">PS05-X</div><div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rail-text/70">Investigative prototype · Rajasthan Police Hackathon 2026 · PS05</div></div></div>
+          <h1 className="mt-10 max-w-xl text-3xl font-bold leading-tight text-white">Reconstruct the operation behind the money trail, then try to break your own conclusions.</h1>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-rail-text/85">Ingest → validate → reconstruct → challenge → identify missing evidence → compare scenarios → prepare authorised next steps → reproduce. Every finding carries its source locator, hash, method version, counter-evidence and limitations.</p>
+          <ul className="mt-6 grid gap-2 text-sm text-rail-text/90 sm:grid-cols-2">
+            {["QR / UPI instruction → recorded transaction bridge", "Bounded fund attribution under balance constraints", "Evidence Adversary with alternative explanations", "FATF-attributed lifecycle and dependency map", "Account-control timeline (holder ≠ controller)", "Proof manifests verified offline"].map((t: any) => <li key={t} className="flex items-start gap-2"><I.check className="mt-0.5 shrink-0 text-accent" width={14} height={14} />{t}</li>)}
           </ul>
         </div>
-        <div className="mt-10 flex flex-wrap gap-1.5 text-[11px] font-semibold uppercase tracking-wide"><span className="rounded-full bg-terracotta px-2.5 py-0.5 text-white">Synthetic demo data</span><span className="rounded-full border border-terracotta/70 px-2.5 py-0.5 text-terracotta">No live police/bank connection</span><span className="rounded-full border border-white/20 px-2.5 py-0.5 text-rail-text/80">Human verification required</span><span className="rounded-full border border-white/20 px-2.5 py-0.5 text-rail-text/80">Rajasthan Police Cyber Security Hackathon 2026 · PS05</span></div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3"><MotionScene scene="login" height={150} /></div>
       </section>
-      <section className="flex items-center justify-center p-6 sm:p-10">
+      <section className="flex min-h-screen flex-col items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
-          <div className="mb-6 lg:hidden"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white"><I.shield /></div><div><div className="text-lg font-bold">PS05-X</div><div className="eyebrow">Investigative prototype</div></div></div><div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold uppercase tracking-wide"><span className="rounded-full bg-terracotta px-2.5 py-0.5 text-white">Synthetic demo</span><span className="rounded-full border border-terracotta/60 px-2.5 py-0.5 text-terracotta">No live police/bank connection</span></div></div>
-          <div className="card p-6">
-            <div className="eyebrow">Sign in</div>
-            <h2 className="mt-1 text-xl font-bold">Investigator workstation</h2>
-            <p className="mb-4 text-sm muted">Use the demo account your operator configured. Roles: analyst (investigate), supervisor (approve candidate links, endorse packs), admin.</p>
-            <form onSubmit={submit} className="space-y-3" aria-label="Sign in">
-              <div><label className="label" htmlFor="email">Email</label><input id="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></div>
-              <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus /></div>
-              {error && <div role="alert" className="flex items-start gap-2 rounded-lg bg-danger-soft p-2.5 text-sm text-danger"><I.alert className="shrink-0" /> {error}</div>}
-              <button className="btn w-full justify-center" disabled={busy || health === "down"}>{busy ? "Signing in…" : <>Sign in <I.arrow /></>}</button>
-            </form>
-            <div className="mt-4 space-y-2 text-xs muted">
-              <div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${health === "ready" ? "bg-ok" : health === "down" ? "bg-danger" : "bg-saffron"}`} />API {health === "ready" ? "ready" : health === "down" ? "unreachable" : "checking…"} · <span className="mono">{API_BASE}</span>{health === "down" && <button className="underline" onClick={check}>retry</button>}</div>
-              <p>Demo accounts exist only when the operator sets <span className="mono">DEMO_*_PASSWORD</span>. Upload real files only when authorised; never use personal data for demonstrations.</p>
-            </div>
+          <div className="mb-6 flex items-center gap-3 md:hidden"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white"><I.shield /></div><div><div className="text-lg font-bold">PS05-X</div><div className="text-[10px] font-semibold uppercase tracking-[0.14em] muted">Investigative prototype</div></div></div>
+          <div className="eyebrow">Public synthetic demo</div>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight">Enter the demo workspace</h2>
+          <p className="mt-2 text-sm muted">One click creates an isolated, time-limited workspace with synthetic data only. No email, password or OTP. Nothing you do here touches a real case.</p>
+          <button onClick={enter} disabled={busy} className="btn mt-6 w-full justify-center py-4 text-lg font-bold" aria-busy={busy}>
+            {busy ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden /> Entering secure demo workspace…</> : <>SIGN IN <I.arrow /></>}
+          </button>
+          {params.get("expired") && !error && <p className="mt-3 text-sm warn" role="status">Your previous session ended. Sign in again to continue.</p>}
+          {error && <div role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger"><div className="font-semibold">Could not enter the demo</div><div>{error}</div><button className="btn-secondary mt-2" onClick={enter}>Try again</button></div>}
+          <div className="mt-6 rounded-xl border border-terracotta/40 bg-terracotta-soft p-3 text-xs"><span className="font-semibold uppercase tracking-wide text-terracotta">Synthetic demo — not real case data.</span> Every record is fictional (reserved .test domains, documentation IP ranges, invented banks). No live police, bank, telecom or registrar connection exists.</div>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-2 text-xs muted">
+            <Link href="/staff/login" className="underline hover:text-ink">Staff sign-in (protected)</Link>
+            <span>v0.4 · Render API · Vercel web</span>
           </div>
-          <ol className="mt-5 grid grid-cols-4 gap-2 text-center text-[11px] muted">{["Sign in", "Generate a case", "Inspect a link", "Export a pack"].map((s, i) => <li key={s} className="inset p-2"><div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">{i + 1}</div>{s}</li>)}</ol>
         </div>
       </section>
     </main>
   );
+}
+
+export default function Page() {
+  return <Suspense fallback={null}><SignIn /></Suspense>;
 }

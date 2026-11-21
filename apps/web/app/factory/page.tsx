@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import Shell, { State } from "@/components/Shell";
 import { I } from "@/components/icons";
-import { api } from "@/lib/api";
+import { api, setCaseContext } from "@/lib/api";
 
 const SCENARIO_HELP: Record<string, string> = {
   phishing_to_mule: "Victim clicks a fake KYC link and pays a mule VPA; funds hop through two accounts to an exit.",
@@ -13,17 +13,25 @@ const SCENARIO_HELP: Record<string, string> = {
   investment_scam: "Large deposits into a “guaranteed returns” scheme.",
   qr_marketplace: "A buyer sends a QR code that debits instead of credits the seller.",
   multi_victim_network: "Several victims pay the same collection accounts; good for cross-case patterns.",
+  desert_mirage: "Operation Desert Mirage: three complaints, QR + UPI link, rotated domains, commingled intermediary with a missing statement month, shared-CDN decoy, stale DNS, OCR-corrupted VPA, message export, simulated hold and preservation response.",
+  identifier_rotation_campaign: "Same operational pattern, second domain and rotated payment identifiers.",
+  commingled_funds: "A salary credit lands in the collection account before the onward transfer: attribution becomes a range.",
+  benign_lookalike: "A legitimate shop with many small credits on shared hosting. No fraud: tests false attribution.",
+  compromised_account: "The collection account holder reports the account as operated without knowledge.",
 };
 const DIFF_HELP: Record<string, string> = {
   clean: "Complete fields, one layout, no decoys. Best to learn the tool.",
   messy: "Missing names, some ambiguous dates, a duplicate row, a balance mismatch, one decoy domain on a shared CDN.",
   high_noise: "More of everything plus OCR-style substitutions and similar names.",
   adversarial: "Adds a stale, conflicting DNS record and more decoys designed to look connected.",
+  incomplete_evidence: "Messy plus a statement without a balance column and a missing statement period.",
+  identifier_rotation: "Messy plus a rotated campaign domain and payment identifiers.",
+  temporal_conflict: "Adversarial plus planted stale/conflicting observations and more ambiguous dates.",
 };
 
 export default function FactoryPage() {
   const [opts, setOpts] = useState<any>(null);
-  const [form, setForm] = useState({ scenario_type: "phishing_to_mule", difficulty: "messy", size: "small", seed: 42 });
+  const [form, setForm] = useState({ scenario_type: "desert_mirage", difficulty: "messy", size: "small", seed: 1001 });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
@@ -31,12 +39,12 @@ export default function FactoryPage() {
 
   async function generate(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError(null); setResult(null);
-    try { setResult(await api("/synthetic/generate", { method: "POST", body: JSON.stringify(form) })); }
+    try { const r = await api("/synthetic/generate", { method: "POST", body: JSON.stringify(form) }); setResult(r); setCaseContext({ id: r.case.id, title: r.case.title }); }
     catch (err: any) { setError(err.message); } finally { setBusy(false); }
   }
   const Chips = ({ name, values, help }: { name: "scenario_type" | "difficulty" | "size"; values: string[]; help?: Record<string, string> }) => (
     <div role="radiogroup" aria-label={name} className="flex flex-wrap gap-1.5">
-      {values.map((v) => <button type="button" key={v} role="radio" aria-checked={form[name] === v} title={help?.[v]} className={`chip ${form[name] === v ? "chip-on" : ""}`} onClick={() => setForm({ ...form, [name]: v })}>{v.replace(/_/g, " ")}</button>)}
+      {values.map((v: any) => <button type="button" key={v} role="radio" aria-checked={form[name] === v} title={help?.[v]} className={`chip ${form[name] === v ? "chip-on" : ""}`} onClick={() => setForm({ ...form, [name]: v })}>{v.replace(/_/g, " ")}</button>)}
     </div>
   );
 

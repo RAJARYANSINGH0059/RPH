@@ -15,24 +15,24 @@ export default function TimelinePage() {
   const [events, setEvents] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fams, setFams] = useState<string[]>(FAMILIES);
-  useEffect(() => { Promise.all([api(`/cases/${id}`), api(`/cases/${id}/timeline`)]).then(([cc, ev]) => { setC(cc); setEvents(ev); }).catch((e) => setError(e.message)); }, [id]);
-  const shown = useMemo(() => (events || []).filter((e) => fams.includes(e.family)), [events, fams]);
+  useEffect(() => { Promise.all([api(`/cases/${id}`), api(`/cases/${id}/timeline`)]).then(([cc, ev]: [any, any]) => { setC(cc); setEvents(ev); }).catch((e) => setError(e.message)); }, [id]);
+  const shown = useMemo(() => (events || []).filter((e: any) => fams.includes(e.family)), [events, fams]);
   const groups = useMemo(() => {
     const m = new Map<string, any[]>();
     shown.forEach((e) => { const k = e.time ? e.time.slice(0, 10) : "Unknown time"; m.set(k, [...(m.get(k) || []), e]); });
     return Array.from(m.entries());
   }, [shown]);
-  const present = FAMILIES.filter((f) => events?.some((e) => e.family === f));
+  const present = FAMILIES.filter((f: any) => events?.some((e: any) => e.family === f));
   return (
     <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title="Timeline" subtitle="All dated evidence on one axis, grouped by day. Uncertain times are marked, never guessed." pageKey="timeline" step="graph">
       <State loading={!events && !error} error={error} empty={events && events.length === 0 ? "No dated evidence yet." : null}>
         <div className="card mb-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="label mb-0">Show</span>
-          {present.map((f) => <button key={f} className={`chip ${fams.includes(f) ? "chip-on" : ""}`} title={WHAT[f]} onClick={() => setFams(fams.includes(f) ? fams.filter((x) => x !== f) : [...fams, f])}><span style={{ color: COLORS[f] }}>●</span>{f} ({events?.filter((e) => e.family === f).length})</button>)}
+          {present.map((f: any) => <button key={f} className={`chip ${fams.includes(f) ? "chip-on" : ""}`} title={WHAT[f]} onClick={() => setFams(fams.includes(f) ? fams.filter((x: any) => x !== f) : [...fams, f])}><span style={{ color: COLORS[f] }}>●</span>{f} ({events?.filter((e: any) => e.family === f).length})</button>)}
           <span className="ml-auto text-ink-muted">Times in UTC; statement times were read as IST unless the source said otherwise.</span>
         </div>
         <div className="space-y-4">
-          {groups.map(([day, evs]) => (
+          {groups.map(([day, evs]: [any, any]) => (
             <section key={day} className="card">
               <h2 className="mb-2 text-sm font-semibold">{day} <span className="font-normal text-ink-muted">· {evs.length} event{evs.length > 1 ? "s" : ""}</span></h2>
               <ol className="relative ml-2 border-l border-line">

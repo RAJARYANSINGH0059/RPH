@@ -83,17 +83,22 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
             assumptions.append({"account": acct, "assumption": "rows with ambiguous/unknown time are ordered as recorded in the statement", "rows": [t.id for t in rows if t.time_precision in {"ambiguous", "unknown"}][:10]})
         # running-balance breaks (perturbed/mistyped balances) are reported and excluded from the equality constraints so one bad
         # cell does not make the whole system infeasible; the break itself is surfaced as an inconsistency with its rows
-        broken: set[str] = set()
+        # Unexplained balance changes between consecutive rows (missing statement period, perturbed cell): modelled as an unknown
+        # movement of that size right before the row. A positive gap is other money arriving; a negative gap is an outflow of unknown
+        # composition that MAY have carried victim-origin funds, so it gets its own bounded variable (widening later intervals honestly).
+        gap_before: dict[str, int] = {}
         for prev_t, t in zip(rows, rows[1:]):
             if prev_t.balance_after_minor is not None and t.balance_after_minor is not None and t.amount_minor is not None:
                 expected = prev_t.balance_after_minor + (t.amount_minor if t.direction == "credit" else -t.amount_minor)
-                if t.balance_after_minor != expected:
-                    broken |= {prev_t.id, t.id}
-                    inconsistencies.append({"account": acct, "row_transaction_ids": [prev_t.id, t.id], "issue": f"running balance break: stated {t.balance_after_minor}, expected {expected} (difference {t.balance_after_minor - expected} paise)",
-                                            "handling": "balance equality for these rows excluded from the constraint system; flows still bounded by amounts"})
+                delta = t.balance_after_minor - expected
+                if delta != 0:
+                    gap_before[t.id] = delta
+                    inconsistencies.append({"account": acct, "row_transaction_ids": [prev_t.id, t.id], "issue": f"unexplained balance change between rows: {delta} paise ({'unknown inflow' if delta > 0 else 'unknown outflow'})",
+                                            "handling": "modelled as an unknown movement of that size; a negative gap may have carried victim-origin funds, so bounds widen"})
+                    assumptions.append({"account": acct, "assumption": f"an unknown {'inflow' if delta > 0 else 'outflow'} of {abs(delta)} paise occurred before row {t.id[:8]} (statement gap or balance error)"})
         # opening O balance: known from first row's balance_after - first row effect, else unknown variable
         first = rows[0] if rows else None
-        if first is not None and first.balance_after_minor is not None and first.id not in broken:
+        if first is not None and first.balance_after_minor is not None:
             open_o = first.balance_after_minor - (first.amount_minor if first.direction == "credit" else -first.amount_minor)
             if open_o < 0:
                 inconsistencies.append({"account": acct, "row_transaction_id": first.id, "issue": f"implied opening balance negative ({open_o} paise)"})
@@ -112,6 +117,19 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
         onward_targets = {h["dst"] for h in p["hops"] if h["src"] == acct}
         for t in rows:
             cp = alias.get(t.counterparty_ref, t.counterparty_ref) if t.counterparty_ref else None
+            gap = gap_before.get(t.id)
+            if gap:
+                if gap > 0:
+                    O_terms.append((float(gap), None))  # unknown other inflow
+                else:
+                    gv = var(f"v:{acct}:gap:{t.id}")  # unknown outflow: victim-origin part bounded by the V balance
+                    bounds_hi[f"v:{acct}:gap:{t.id}"] = float(-gap)
+                    A_ub.append(_lin({gv: 1.0}, V_terms, -1.0, var))
+                    b_ub.append(_const(V_terms))
+                    A_ub.append(_lin({gv: -1.0}, O_terms, -1.0, var))
+                    b_ub.append(_const(O_terms) - float(-gap))
+                    V_terms = V_terms + [(-1.0, gv)]
+                    O_terms = O_terms + [(float(gap), None), (1.0, gv)]
             if t.direction == "credit":
                 if k == 0 and (t.id in origin_ids or _matches_hop(p, p["accounts"][0], acct, t)):
                     V_terms = V_terms + [(float(t.amount_minor), None)]  # origin credit arrives here
@@ -135,7 +153,7 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
                 if cp in onward_targets:
                     hop_vars.append((acct, t.id, f"v:{acct}:{t.id}", t.amount_minor))
             # running balance equality where present: V + O == balance_after
-            if t.balance_after_minor is not None and t.id not in broken:
+            if t.balance_after_minor is not None:
                 A_eq.append(_lin({}, V_terms + O_terms, 1.0, var))
                 b_eq.append(float(t.balance_after_minor) - _const(V_terms + O_terms))
         if not v_credited and k > 0:
@@ -170,8 +188,8 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
             results.append({"account": acct, "transaction_id": tid, "observed_transfer_minor": amt, "minimum_attributable_minor": None, "maximum_attributable_minor": None, "solver": solver_status})
             continue
         mn, mx = int(round(lo.fun)), int(round(-hi.fun))
-        witness_min = {var_names[i]: int(round(x)) for i, x in enumerate(lo.x) if var_names[i].startswith("v:") and round(x) > 0}
-        witness_max = {var_names[i]: int(round(x)) for i, x in enumerate(hi.x) if var_names[i].startswith("v:") and round(x) > 0}
+        witness_min = {var_names[i].replace(":gap:", ":unknown_outflow:"): int(round(x)) for i, x in enumerate(lo.x) if var_names[i].startswith("v:") and round(x) > 0}
+        witness_max = {var_names[i].replace(":gap:", ":unknown_outflow:"): int(round(x)) for i, x in enumerate(hi.x) if var_names[i].startswith("v:") and round(x) > 0}
         t = all_tx[tid]
         results.append({"account": acct, "transaction_id": tid, "to_account": alias.get(t.counterparty_ref or "", t.counterparty_ref), "event_time": t.datetime_utc.isoformat() if t.datetime_utc else None,
                         "observed_transfer_minor": amt, "minimum_attributable_minor": mn, "maximum_attributable_minor": mx, "exact": mn == mx, "interval_width_minor": mx - mn,

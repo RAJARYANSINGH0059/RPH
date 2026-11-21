@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LevelBadge } from "@/components/Shell";
 import { I } from "@/components/icons";
@@ -38,6 +39,7 @@ export default function EdgePanel({ caseId, edgeId, onClose, onReviewed }: { cas
     <aside aria-label="Relationship evidence" className="card max-h-[85vh] overflow-y-auto text-sm">
       <div className="flex items-start justify-between gap-2"><div><div className="text-[11px] font-semibold uppercase tracking-wide text-accent">Relationship evidence</div>{d && <h2 className="font-semibold">{d.edge.type.replace(/_/g, " ").toLowerCase()}</h2>}</div><button className="btn-icon" onClick={onClose} aria-label="Close panel"><I.close /></button></div>
       {error && <div role="alert" className="mt-2 text-danger">{error}</div>}
+      {d && <Link href={`/cases/${caseId}/counterproof?edge=${edgeId}`} className="mt-2 inline-flex items-center gap-1 text-xs text-accent-deep underline">Open the Attribution Challenge Report (alternatives, counter-evidence, dissent)</Link>}
       {!d && !error && <div className="mt-2 text-ink-muted">Loading…</div>}
       {d && (
         <div className="mt-2 space-y-3">

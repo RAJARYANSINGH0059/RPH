@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import Shell, { State } from "@/components/Shell";
 import { I } from "@/components/icons";
-import { api, fmtTime } from "@/lib/api";
+import { api, fmtTime, setCaseContext } from "@/lib/api";
 
 type Case = { id: string; title: string; internal_ref: string; summary: string; status: string; is_synthetic: boolean; updated_at: string };
 
@@ -28,14 +28,14 @@ export default function CasesPage() {
   }
   async function quickDemo() {
     setQuick(true); setError(null);
-    try { const r = await api("/synthetic/generate", { method: "POST", body: JSON.stringify({ scenario_type: "phishing_to_mule", difficulty: "messy", size: "small", seed: Math.floor(Math.random() * 100000) }) }); window.location.href = `/cases/${r.case.id}`; }
+    try { const r = await api("/synthetic/generate", { method: "POST", body: JSON.stringify({ scenario_type: "desert_mirage", difficulty: "messy", size: "small", seed: Math.floor(Math.random() * 100000) }) }); setCaseContext({ id: r.case.id, title: r.case.title }); window.location.href = `/cases/${r.case.id}`; }
     catch (err: any) { setError(err.message); setQuick(false); }
   }
-  const shown = (cases || []).filter((c) => !q || `${c.title} ${c.internal_ref} ${c.summary}`.toLowerCase().includes(q.toLowerCase()));
+  const shown = (cases || []).filter((c: any) => !q || `${c.title} ${c.internal_ref} ${c.summary}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <Shell title="Cases" subtitle="One case per investigation. Pick a case to continue, or start a new one." pageKey="cases"
-      actions={<><button className="btn" onClick={quickDemo} disabled={quick}>{quick ? "Generating…" : <><I.factory /> One-click demo case</>}</button><button className="btn-secondary" onClick={() => setShowForm((v) => !v)}><I.cases /> New case</button></>}>
+      actions={<><button className="btn" onClick={quickDemo} disabled={quick}>{quick ? "Generating Operation Desert Mirage…" : <><I.factory /> One-click demo: Operation Desert Mirage</>}</button><button className="btn-secondary" onClick={() => setShowForm((v) => !v)}><I.cases /> New case</button></>}>
       {showForm && (
         <form onSubmit={create} className="card mb-4 grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto]" aria-label="Create case">
           <div><label className="label" htmlFor="t">Title *</label><input id="t" className="input" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Complaint 2026/118 – UPI fraud" /></div>
@@ -57,7 +57,7 @@ export default function CasesPage() {
           <>
             <div className="mb-3 flex items-center gap-2"><div className="relative max-w-sm flex-1"><I.search className="absolute left-2.5 top-2.5 text-ink-muted" width={16} height={16} /><input className="input pl-8" placeholder="Search cases…" aria-label="Search cases" value={q} onChange={(e) => setQ(e.target.value)} /></div><span className="text-xs text-ink-muted">{shown.length} of {cases?.length}</span></div>
             <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {shown.map((c) => (
+              {shown.map((c: any) => (
                 <li key={c.id}>
                   <Link href={`/cases/${c.id}`} className="card flex h-full flex-col gap-2 transition hover:-translate-y-0.5 hover:shadow-md">
                     <div className="flex items-start justify-between gap-2"><div className="font-semibold leading-snug">{c.title}</div>{c.is_synthetic ? <span className="badge shrink-0 bg-synthetic text-white">synthetic</span> : <span className="badge shrink-0 bg-panel">uploaded</span>}</div>

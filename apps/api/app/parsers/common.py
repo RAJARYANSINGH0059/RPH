@@ -285,6 +285,13 @@ def detect_kind(data: bytes, filename: str) -> tuple[str, list[str]]:
     stripped = text.lstrip()
     if stripped.startswith("{") or stripped.startswith("["):
         return "json", warnings
-    if ext == "csv" or ("," in text and "\n" in text and text.count(",") >= 2):
+    if ext == "csv":
         return "csv", warnings
+    # content-based CSV: most non-empty lines must share the same delimiter count (>= 2 commas); prose with commas stays text
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if ext != "txt" and len(lines) >= 3:
+        counts = [ln.count(",") for ln in lines]
+        common = max(set(counts), key=counts.count)
+        if common >= 2 and counts.count(common) >= max(3, int(0.6 * len(counts))):
+            return "csv", warnings
     return "txt", warnings

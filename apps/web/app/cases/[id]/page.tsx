@@ -12,14 +12,14 @@ export default function CaseOverview() {
   const [c, setC] = useState<any>(null);
   const [files, setFiles] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { Promise.all([api(`/cases/${id}`), api(`/cases/${id}/files`)]).then(([cc, ff]) => { setC(cc); setFiles(ff); }).catch((e) => setError(e.message)); }, [id]);
+  useEffect(() => { Promise.all([api(`/cases/${id}`), api(`/cases/${id}/files`)]).then(([cc, ff]: [any, any]) => { setC(cc); setFiles(ff); }).catch((e) => setError(e.message)); }, [id]);
   const next = !c ? null : c.files_count === 0 ? { href: `/cases/${id}/upload`, label: "Upload the first evidence file", why: "Nothing has been ingested yet." }
     : c.transactions_count === 0 ? { href: `/cases/${id}/upload`, label: "Add a bank statement (CSV/XLSX)", why: "No transactions were parsed, so there is no money trail yet." }
     : c.findings_awaiting_review > 0 ? { href: `/cases/${id}/graph`, label: `Review ${c.findings_awaiting_review} candidate relationship${c.findings_awaiting_review > 1 ? "s" : ""}`, why: "Candidate and stale links need a human decision before the report." }
     : { href: `/cases/${id}/reports`, label: "Export the report", why: "Everything is reviewed." };
   const step = !c ? "upload" : c.files_count === 0 ? "upload" : c.transactions_count === 0 ? "parse" : c.findings_awaiting_review > 0 ? "review" : "report";
   return (
-    <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title={c?.title || "Case"} subtitle={c ? `${c.internal_ref ? `Ref ${c.internal_ref} · ` : ""}${c.status} · last activity ${fmtTime(c.last_activity)}` : undefined} pageKey="overview" step={step}>
+    <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title={c?.title || "Case workspace"} subtitle={c ? `${c.internal_ref ? `Ref ${c.internal_ref} · ` : ""}${c.status} · ${c.is_synthetic ? "synthetic data" : "uploaded data"} · last activity ${fmtTime(c.last_activity)} · suggested step: ${step}` : undefined} pageKey="overview">
       <State loading={!c && !error} error={error}>
         {c && (
           <div className="space-y-4">
@@ -42,7 +42,7 @@ export default function CaseOverview() {
                 <div className="flex items-center justify-between px-4 py-3"><h2 className="font-semibold">Evidence files</h2><Link href={`/cases/${id}/upload`} className="btn-secondary"><I.upload /> Upload more</Link></div>
                 <table className="data"><thead><tr><th>File</th><th>Kind</th><th>Size</th><th>Status</th><th>Uploaded</th></tr></thead>
                   <tbody>{files.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-ink-muted">No files yet.</td></tr>}
-                    {files.map((f) => <tr key={f.id}><td><div className="font-medium">{f.original_name}</div><div className="mono text-[11px] text-ink-muted">sha256 {f.sha256.slice(0, 20)}…</div></td><td>{f.detected_kind}</td><td>{(f.size_bytes / 1024).toFixed(1)} KB</td><td><span className={`badge ${f.status === "parsed" ? "bg-ok-soft text-ok" : f.status === "failed" ? "bg-danger-soft text-danger" : "bg-saffron-soft text-warn"}`}>{f.status.replace("_", " ")}</span></td><td className="text-xs">{fmtTime(f.uploaded_at)}</td></tr>)}
+                    {files.map((f: any) => <tr key={f.id}><td><div className="font-medium">{f.original_name}</div><div className="mono text-[11px] text-ink-muted">sha256 {f.sha256.slice(0, 20)}…</div></td><td>{f.detected_kind}</td><td>{(f.size_bytes / 1024).toFixed(1)} KB</td><td><span className={`badge ${f.status === "parsed" ? "bg-ok-soft text-ok" : f.status === "failed" ? "bg-danger-soft text-danger" : "bg-saffron-soft text-warn"}`}>{f.status.replace("_", " ")}</span></td><td className="text-xs">{fmtTime(f.uploaded_at)}</td></tr>)}
                   </tbody></table>
               </div>
               <div className="space-y-3">
@@ -50,7 +50,7 @@ export default function CaseOverview() {
                 <div className="card text-sm">
                   <div className="label">Where things are</div>
                   <ul className="space-y-1.5">
-                    {[["Money trail", `/cases/${id}/transactions`, <I.money key="m" width={16} height={16} />], ["Relationships & evidence", `/cases/${id}/graph`, <I.graph key="g" width={16} height={16} />], ["Chronology", `/cases/${id}/timeline`, <I.timeline key="t" width={16} height={16} />], ["Report & export", `/cases/${id}/reports`, <I.report key="r" width={16} height={16} />], ["Related authorised cases", `/cases/${id}/crosscase`, <I.link key="x" width={16} height={16} />], ["Victim claims & restitution readiness", `/cases/${id}/claims`, <I.shield key="c" width={16} height={16} />], ["Cooperation pack", `/cases/${id}/cooperation`, <I.file key="p" width={16} height={16} />]].map(([l, h, ic]) => <li key={l as string}><Link className="flex items-center gap-2 text-accent hover:underline" href={h as string}>{ic}{l as string}</Link></li>)}
+                    {[["Money trail", `/cases/${id}/transactions`, <I.money key="m" width={16} height={16} />], ["Relationships & evidence", `/cases/${id}/graph`, <I.graph key="g" width={16} height={16} />], ["Chronology", `/cases/${id}/timeline`, <I.timeline key="t" width={16} height={16} />], ["Report & export", `/cases/${id}/reports`, <I.report key="r" width={16} height={16} />], ["Digital twin", `/cases/${id}/twin`, <I.radar key="tw" width={16} height={16} />], ["Payment instruction bridge", `/cases/${id}/payment-bridge`, <I.qr key="q" width={16} height={16} />], ["Bounded fund provenance", `/cases/${id}/bounded-flow`, <I.scale key="b" width={16} height={16} />], ["CounterProof", `/cases/${id}/counterproof`, <I.shield key="cp" width={16} height={16} />], ["Next-best evidence", `/cases/${id}/ivoi`, <I.sparkle key="iv" width={16} height={16} />], ["Related authorised cases", `/cases/${id}/crosscase`, <I.link key="x" width={16} height={16} />], ["Victim claims & restitution readiness", `/cases/${id}/claims`, <I.shield key="c" width={16} height={16} />], ["Cooperation pack", `/cases/${id}/cooperation`, <I.file key="p" width={16} height={16} />]].map(([l, h, ic]) => <li key={l as string}><Link className="flex items-center gap-2 text-accent hover:underline" href={h as string}>{ic}{l as string}</Link></li>)}
                   </ul>
                 </div>
               </div>

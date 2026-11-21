@@ -56,14 +56,14 @@ export default function CooperationPage() {
                 </div>
               ))}
               <div className="eyebrow mb-2 mt-4">Section 5 · Narrative (10–500 characters each)</div>
-              {(["fir_gist", "assistance_details"] as const).map((k) => <label key={k} className="mb-2 block"><span className="label">{k === "fir_gist" ? "FIR gist" : "Assistance required"} · <span className={`num ${len(k) < 10 || len(k) > 500 ? "danger" : "ok"}`}>{len(k)}/500</span>{missing.has(k) && <span className="danger"> · missing</span>}</span><textarea className={`input ${bounds[k] || missing.has(k) ? "border-danger" : ""}`} rows={3} maxLength={600} value={fields[k] || ""} onChange={(e) => setFields({ ...fields, [k]: e.target.value })} /></label>)}
+              {(["fir_gist", "assistance_details"] as const).map((k: any) => <label key={k} className="mb-2 block"><span className="label">{k === "fir_gist" ? "FIR gist" : "Assistance required"} · <span className={`num ${len(k) < 10 || len(k) > 500 ? "danger" : "ok"}`}>{len(k)}/500</span>{missing.has(k) && <span className="danger"> · missing</span>}</span><textarea className={`input ${bounds[k] || missing.has(k) ? "border-danger" : ""}`} rows={3} maxLength={600} value={fields[k] || ""} onChange={(e) => setFields({ ...fields, [k]: e.target.value })} /></label>)}
               <div className="eyebrow mb-2 mt-4">Section 6 · Attachments</div>
               <div className="grid gap-2 md:grid-cols-2">
-                <label className="block"><span className="label">FIR PDF (required){!fir && <span className="danger"> · missing</span>}</span><select className="input" value={fir} onChange={(e) => setFir(e.target.value)}><option value="">—</option>{files.map((f) => <option key={f.id} value={f.id}>{f.original_name}</option>)}</select></label>
-                <label className="block"><span className="label">Supervisor-signed endorsement (required){!endorse && <span className="danger"> · missing</span>}</span><select className="input" value={endorse} onChange={(e) => setEndorse(e.target.value)}><option value="">—</option>{files.map((f) => <option key={f.id} value={f.id}>{f.original_name}</option>)}</select></label>
+                <label className="block"><span className="label">FIR PDF (required){!fir && <span className="danger"> · missing</span>}</span><select className="input" value={fir} onChange={(e) => setFir(e.target.value)}><option value="">—</option>{files.map((f: any) => <option key={f.id} value={f.id}>{f.original_name}</option>)}</select></label>
+                <label className="block"><span className="label">Supervisor-signed endorsement (required){!endorse && <span className="danger"> · missing</span>}</span><select className="input" value={endorse} onChange={(e) => setEndorse(e.target.value)}><option value="">—</option>{files.map((f: any) => <option key={f.id} value={f.id}>{f.original_name}</option>)}</select></label>
               </div>
               <div className="label mt-3">Other evidence to include</div>
-              <ul className="grid gap-1 md:grid-cols-2">{files.map((f) => <li key={f.id}><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={atts.includes(f.id)} onChange={() => setAtts(atts.includes(f.id) ? atts.filter((x) => x !== f.id) : [...atts, f.id])} /><span className="truncate">{f.original_name}</span><span className="mono text-[10px] muted">{f.sha256.slice(0, 12)}…</span></label></li>)}</ul>
+              <ul className="grid gap-1 md:grid-cols-2">{files.map((f: any) => <li key={f.id}><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={atts.includes(f.id)} onChange={() => setAtts(atts.includes(f.id) ? atts.filter((x: any) => x !== f.id) : [...atts, f.id])} /><span className="truncate">{f.original_name}</span><span className="mono text-[10px] muted">{f.sha256.slice(0, 12)}…</span></label></li>)}</ul>
               {!cur && <button className="btn mt-4" onClick={save}><I.check /> Save draft</button>}
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function CooperationPage() {
               </ul> : <p className="mt-1 text-sm muted">Save a draft to see validation.</p>}
             </div>
             <div className="card text-xs muted"><div className="label">Boundaries</div>No portal login, CAPTCHA or automated submission. Verify the current official cooperation-request process before relying on this pack. Every save, endorsement and export is written to the audit log.</div>
-            {packs && packs.length > 1 && <div className="card"><div className="label">Packs in this case</div><ul className="text-sm">{packs.map((p) => <li key={p.id}><button className="text-accent-deep hover:underline" onClick={() => pick(p)}>{p.id.slice(0, 8)} · {p.status.replace(/_/g, " ")}</button></li>)}</ul></div>}
+            {packs && packs.length > 1 && <div className="card"><div className="label">Packs in this case</div><ul className="text-sm">{packs.map((p: any) => <li key={p.id}><button className="text-accent-deep hover:underline" onClick={() => pick(p)}>{p.id.slice(0, 8)} · {p.status.replace(/_/g, " ")}</button></li>)}</ul></div>}
           </div>
         </div>
       </State>

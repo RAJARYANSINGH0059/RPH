@@ -13,7 +13,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models import Role, User
-from app.routers import auth, cases, claims, connectors, cooperation, crosscase, graph, health, intel, intel_global, reports, synthetic
+from app.routers import auth, benchmark, cases, claims, connectors, cooperation, crosscase, graph, health, intel, intel_global, reports, synthetic
 
 log = logging.getLogger("ps05x")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(CORSMiddleware, allow_origins=s.cors_origin_list, allow_origin_regex=s.cors_origin_regex or None,
                        allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
-    for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router, crosscase.router, claims.router, cooperation.router, intel.router, intel_global.router):
+    for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router, crosscase.router, claims.router, cooperation.router, intel.router, intel_global.router, benchmark.router):
         app.include_router(r, prefix="/api")
 
     @app.exception_handler(Exception)

@@ -34,6 +34,12 @@ jobs:
       - name: Smoke benchmark (2 seeds)
         working-directory: .
         run: python tests/benchmark/run_benchmark.py --seeds 2 --out tests/benchmark/results/ci_smoke.json
+      - name: Benchmark v2 smoke (2 seeds)
+        working-directory: .
+        run: python tests/benchmark/run_benchmark_v2.py --seeds 2 --out tests/benchmark/results/ci_v2_smoke.json
+      - name: Offline proof verifier self-check
+        working-directory: .
+        run: python scripts/verify_proof.py --help
       - name: Model inference test
         working-directory: .
         run: python -m pytest tests/e2e/test_model_inference.py -q
@@ -62,6 +68,8 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - name: Navigation registry (unique destinations, every route has a page)
+        run: node --experimental-strip-types scripts/check-nav.mjs
       - run: npm run build
         env:
           NEXT_PUBLIC_API_BASE_URL: https://api.example.invalid

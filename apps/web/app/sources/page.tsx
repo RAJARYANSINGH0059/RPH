@@ -23,7 +23,7 @@ export default function SourcesPage() {
         <div className="space-y-4">
           <div className="callout"><I.shield className="shrink-0 text-accent" /><div>Synthetic mode and manual uploads work with every provider offline. A connector shows <strong>live</strong> only after a real authenticated request succeeded. Current DNS/RDAP answers are labelled as current observations, never as historical evidence. There is no NCRP, CFCFRMS or bank integration in this build.</div></div>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {rows?.map((r) => (
+            {rows?.map((r: any) => (
               <li key={r.name} className="card">
                 <div className="flex items-start justify-between gap-2"><div className="font-semibold">{r.name.replace("_", " ")}</div><span className={`badge ${STYLE[r.status]}`}>{r.status.replace("_", " ")}</span></div>
                 <div className="mt-1 text-xs text-ink-muted">{r.provider}</div>

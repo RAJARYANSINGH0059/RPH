@@ -191,6 +191,7 @@ def assemble(db: Session, case: Case, *, as_of: datetime | None = None, layers: 
     unresolved_q = [f"Onward movement from {p['accounts'][-1]} is unknown ({p['resolution_hint']})" for p in paths if p["status"] == "unresolved"][:10]
     unresolved_q += [f"Payment instruction {e['label']} has no matching recorded transaction yet" for e in unmatched][:5]
     unresolved_q += [f"{e['label']}: shared hosting is a candidate pivot only" for e in events if e["event_type"] == "INFRASTRUCTURE_RELATIONSHIP_CANDIDATE"][:5]
+    unresolved_q = list(dict.fromkeys(unresolved_q))
     findings = [finding("event_count", f"{len(events)} events across {len({e['layer'] for e in events})} layers", evidence_class="derived")]
     return result(case, "fraud_operation_digital_twin", TWIN_VERSION, findings=findings, input_evidence_ids=[i for e in events for i in e["evidence_ids"] if i],
                   uncertainties=unresolved_q, limitations=["The twin is an analytical reconstruction of reported and observed events; unknown elements stay unknown.",
