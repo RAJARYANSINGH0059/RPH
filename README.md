@@ -18,6 +18,8 @@ render.yaml     Render blueprint (API + Postgres) · apps/web/vercel.json · .gi
 
 ## Quick start (local)
 
+One-click on Windows once dependencies are installed and `apps/api/.env` exists: `powershell -ExecutionPolicy Bypass -File scripts/run_local.ps1`
+
 Backend (SQLite, tables auto-created in development):
 
 ```powershell
