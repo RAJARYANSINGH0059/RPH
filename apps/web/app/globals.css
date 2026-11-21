@@ -5,6 +5,7 @@
 :root { color-scheme: light; }
 body { @apply bg-[#f4f6f9] text-ink antialiased; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { @apply outline-none ring-2 ring-accent ring-offset-2; }
+@layer components {
 .card { @apply rounded-xl border border-line bg-white p-4 shadow-sm; }
 .btn { @apply inline-flex items-center gap-2 rounded-lg border border-transparent bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50; }
 .btn-secondary { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink shadow-sm transition hover:border-accent/40 hover:bg-accent-light disabled:cursor-not-allowed disabled:opacity-50; }
@@ -20,3 +21,4 @@ table.data td { @apply border-b border-line px-3 py-2 align-top; }
 table.data tbody tr:hover { @apply bg-[#fafbfd]; }
 .callout { @apply flex gap-3 rounded-xl border border-accent/20 bg-accent-light/60 p-3 text-sm; }
 .warn { @apply text-[#8a5a0f]; }
+}

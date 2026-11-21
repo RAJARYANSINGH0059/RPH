@@ -32,3 +32,6 @@ tests/benchmark/results/per_case_*.json
 Thumbs.db
 .vscode/
 .idea/
+
+# local deployment secrets
+*.local.md

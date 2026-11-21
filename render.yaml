@@ -5,9 +5,10 @@ services:
     runtime: python
     rootDir: apps/api
     plan: free
+    region: singapore
     buildCommand: pip install -r requirements.txt
-    preDeployCommand: alembic upgrade head
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # free plan has no pre-deploy hook, so migrations run at start
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health/live
     autoDeploy: true
     envVars:
@@ -43,5 +44,6 @@ services:
 databases:
   - name: ps05x-db
     plan: free
+    region: singapore
     databaseName: ps05x
     user: ps05x

@@ -110,6 +110,7 @@ export default function GraphPage() {
     cy.on("mouseover", "edge", (ev) => ev.target.addClass("hl"));
     cy.on("mouseout", "edge", (ev) => ev.target.removeClass("hl"));
     cyRef.current = cy;
+    (window as any).__ps05x_cy = cy; // debugging aid
     // the container can be measured as 0x0 on first paint; refit once the browser has laid it out
     const raf = requestAnimationFrame(() => { cy.resize(); cy.fit(undefined, 30); });
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { cy.resize(); cy.fit(undefined, 30); }) : null;
