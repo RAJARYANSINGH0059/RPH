@@ -66,3 +66,34 @@ The user instructed (mid-session): build and save everything in this folder, dep
 
 - Python 3.12, Node 24, Vercel CLI present but **not authenticated**; no `gh`, `docker`, `psql`, `render` CLI available.
 - Tests run against SQLite locally; PostgreSQL is used in production via the same SQLAlchemy models and Alembic migrations.
+
+---
+
+# Addendum: gap-closure run (2026-11-21, later the same day)
+
+Prior sections are preserved as dated history. Official panel readings at the start of this run (plan units, not token estimates):
+
+| Window | Observed |
+|---|---|
+| 5-hour limit | 49% used, resets in ~3h 20m |
+| Weekly, all models | 20% used |
+| Weekly, Fable | 13% used |
+
+The earlier user-reported "~13% remaining" is historical and superseded by these readings. The binding constraint is now the 5-hour window; if it is exhausted the session pauses until reset without loss of repository state.
+
+Estimate basis: qualitative, in weekly-window percentage points, low confidence.
+
+| Phase | Low | Expected | High |
+|---|---|---|---|
+| Repo reconciliation + docs | <1 | 1 | 1 |
+| Cross-case correlation (service, API, UI, tests) | 2 | 3 | 5 |
+| OCR engine path + fixtures + Docker | 1 | 2 | 3 |
+| Path reconstruction + benchmark metrics | 1 | 2 | 4 |
+| Victim claims + cooperation pack + migration + tests | 2 | 3 | 5 |
+| S3 storage adapter + health | <1 | 1 | 2 |
+| Premium UI redesign + new screens + screenshots | 3 | 5 | 8 |
+| Tests/CI/benchmark/repair | 1 | 2 | 4 |
+| Branch, PR, Render/Vercel redeploy and verification | <1 | 1 | 2 |
+| **Total** | **~12** | **~20** | **~34** |
+
+Projected weekly usage after this run: ~32% (low), ~40% (expected), ~54% (high). Scope: execute P0 and P1 fully; P2 scam-artifact intake is deferred unless budget clearly remains. Bounded repair: two cycles per phase.

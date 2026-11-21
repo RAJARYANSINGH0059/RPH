@@ -158,3 +158,34 @@ def report_pdf(report: dict) -> bytes:
     story.append(Paragraph(report["disclaimer"], small))
     doc.build(story)
     return buf.getvalue()
+
+
+def simple_table_pdf(title: str, banners: list[str], sections: list[tuple[str, list[str], list[list]]]) -> bytes:
+    """Generic deterministic PDF: a title, banner lines and (heading, header, rows) sections. Used by claims and cooperation packs."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5 * cm, rightMargin=1.5 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm, title=title)
+    ss = getSampleStyleSheet()
+    small = ss["BodyText"]
+    small.fontSize = 8
+    small.leading = 10
+    story = [Paragraph(title, ss["Title"])]
+    for b in banners:
+        story.append(Paragraph(f"<font color='#8a1c1c'><b>{b}</b></font>" if b.isupper() else b, small))
+    story.append(Spacer(1, 8))
+    for heading, header, rows in sections:
+        story.append(Paragraph(f"<b>{heading}</b>", ss["Heading3"]))
+        data = [header] + (rows or [["(none)"] + [""] * (len(header) - 1)])
+        data = [[Paragraph(str(x)[:300], small) for x in r] for r in data]
+        t = Table(data, repeatRows=1)
+        t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef5")), ("GRID", (0, 0), (-1, -1), 0.25, colors.grey), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        story.append(t)
+        story.append(Spacer(1, 6))
+    story.append(Paragraph(DISCLAIMER, small))
+    doc.build(story)
+    return buf.getvalue()

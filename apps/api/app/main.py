@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -12,7 +13,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password
 from app.db.session import Base, SessionLocal, engine
 from app.models import Role, User
-from app.routers import auth, cases, connectors, graph, health, reports, synthetic
+from app.routers import auth, cases, claims, connectors, cooperation, crosscase, graph, health, reports, synthetic
 
 log = logging.getLogger("ps05x")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -52,9 +53,10 @@ def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title=s.app_name, version=s.app_version, lifespan=lifespan,
                   description="Evidence-centred financial-cybercrime investigation workbench (PS05-X). Investigative aid; human verification required.")
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(CORSMiddleware, allow_origins=s.cors_origin_list, allow_origin_regex=s.cors_origin_regex or None,
                        allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
-    for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router):
+    for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router, crosscase.router, claims.router, cooperation.router):
         app.include_router(r, prefix="/api")
 
     @app.exception_handler(Exception)

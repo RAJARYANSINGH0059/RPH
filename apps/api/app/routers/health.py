@@ -13,8 +13,10 @@ router = APIRouter(prefix="/health", tags=["health"])
 @router.get("/live")
 def live():
     s = get_settings()
+    from app.parsers import ocr
     from app.services import ml_triage
-    return {"status": "ok", "service": s.app_name, "version": s.app_version, "ml_triage_model": ml_triage.status()}
+    from app.services.storage import storage_status
+    return {"status": "ok", "service": s.app_name, "version": s.app_version, "ml_triage_model": ml_triage.status(), "ocr": ocr.status(), "storage": storage_status()}
 
 
 @router.get("/ready")

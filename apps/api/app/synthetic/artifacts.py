@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import timezone
+from datetime import timedelta, timezone
 
 from app.synthetic.generator import Account, Generator, Truth
 
@@ -233,6 +233,17 @@ def build_bundle(gen: Generator) -> tuple[dict[str, bytes], Truth, dict]:
             files[f"statement_{acct.acct_no[-4:]}_{acct.role}.csv"] = statement_csv(headers, rows, acct)
     files["complaint.pdf"] = complaint_pdf(gen, truth)
     files["technical_observations.json"] = technical_observations_json(gen, truth)
+    if gen.scenario_type == "multi_victim_network":
+        # simulated bank hold notice for the first-layer account: partially held, remainder already moved on
+        m1 = [a for a in truth.accounts if a.role == "mule_l1"][0]
+        inflow = sum(t.amount_minor for t in truth.transactions if t.dst is m1 and t.hop == 1)
+        held = (inflow * gen.rng.randint(30, 60) // 100) // 100 * 100
+        truth.params["simulated_holds"] = [{"account": m1.acct_no, "held_minor": held, "inflow_minor": inflow, "source": "bank_hold_notice.txt"}]
+        notice_lines = [WATERMARK, "SIMULATED BANK HOLD NOTICE (fictional, generated for testing)", f"Bank: {m1.bank}", f"Account: {m1.acct_no}",
+                        f"Holder: {m1.holder}", f"Amount placed on hold: Rs {held / 100:.2f}", f"Reference: HOLD-SYN-{gen.seed}",
+                        f"Date: {(gen.t0 + timedelta(days=3)).strftime('%d-%m-%Y')}", "Remaining credits were transferred out before the hold request was received."]
+        notice = chr(10).join(notice_lines) + chr(10)
+        files["bank_hold_notice.txt"] = notice.encode("utf-8")
     png = screenshot_png(gen, truth)
     if png:
         files["screenshot.png"] = png

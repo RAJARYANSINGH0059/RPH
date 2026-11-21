@@ -360,12 +360,19 @@ def _ingest_document(db: Session, case: Case, sf: SourceFile, file_entity: Entit
     found_total: dict[str, int] = {}
     snippets: list[dict] = []
     for block in res.blocks:
+        ocr_meta = getattr(block, "ocr", None) or {}
+        ocr_flags = []
+        if block.method == "ocr":
+            ocr_flags = ["ocr_review_required"] + (["ocr_low_confidence"] if ocr_meta.get("quality") != "ok" else [])
+        nv = {"text_length": len(block.text)}
+        if ocr_meta:
+            nv["ocr"] = {k: v for k, v in ocr_meta.items() if k != "boxes"}
+            nv["ocr_boxes"] = ocr_meta.get("boxes", [])[:60]
         ev = EvidenceItem(case_id=case.id, source_file_id=sf.id, parse_run_id=run.id, source_type=source_type,
                           source_locator=block.locator, raw_value=block.text[:20000],
-                          normalised_value={"text_length": len(block.text)}, extraction_method=block.method,
+                          normalised_value=nv, extraction_method=block.method,
                           parser_name=pname, parser_version=common.PARSER_VERSION, observed_at=sf.uploaded_at,
-                          time_precision="unknown",
-                          quality_flags=["ocr_low_confidence"] if block.method == "ocr" else [])
+                          time_precision="unknown", quality_flags=ocr_flags)
         db.add(ev)
         db.flush()
         inds = indicators.extract_indicators(block.text)
@@ -382,14 +389,16 @@ def _ingest_document(db: Session, case: Case, sf: SourceFile, file_entity: Entit
                                raw_value=block.text[max(0, ind.span[0] - 60): ind.span[1] + 60],
                                normalised_value={"indicator_kind": ind.kind, "value": ind.value},
                                extraction_method=f"regex_{ind.kind}", parser_name=pname, parser_version=common.PARSER_VERSION,
-                               observed_at=sf.uploaded_at, time_precision="unknown",
-                               quality_flags=["ocr_low_confidence"] if block.method == "ocr" else [])
+                               observed_at=sf.uploaded_at, time_precision="unknown", quality_flags=list(ocr_flags))
             db.add(iev)
             db.flush()
             lim = ["mention_only_not_proof_of_involvement"]
             if block.method == "ocr":
                 lim.append("extracted_by_ocr_verify_against_image")
-            add_relationship(db, case.id, file_entity, ent, "MENTIONS", EvidenceLevel.directly_observed, "document_regex",
+                if ocr_meta.get("quality") != "ok":
+                    lim.append("low_confidence_ocr_needs_corroboration")
+            level = EvidenceLevel.candidate if (block.method == "ocr" and ocr_meta.get("quality") != "ok") else EvidenceLevel.directly_observed
+            add_relationship(db, case.id, file_entity, ent, "MENTIONS", level, "document_regex",
                              [iev.id], observed_at=sf.uploaded_at, limitations=lim,
                              attributes={"indicator_kind": ind.kind, "locator": iev.source_locator})
         if len(snippets) < 5:

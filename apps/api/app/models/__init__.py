@@ -289,3 +289,74 @@ class BenchmarkRun(Base):
     config: Mapped[dict] = mapped_column(JSON, default=dict)
     results: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Victim claims / restitution readiness (complements the Money Restoration Module; never a legal or allocation decision)
+# ---------------------------------------------------------------------------------------------------------------------
+
+class ClaimStatus(str, enum.Enum):
+    draft = "draft"
+    investigator_checked = "investigator_checked"
+    supervisor_checked = "supervisor_checked"
+    export_ready = "export_ready"
+
+
+class VictimClaim(Base):
+    __tablename__ = "victim_claims"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    victim_label: Mapped[str] = mapped_column(String(120))  # pseudonymous label, never a full identity
+    complaint_ack_no: Mapped[str] = mapped_column(String(80), default="")
+    fir_reference: Mapped[str] = mapped_column(String(80), default="")
+    claimed_loss_minor: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(8), default="INR")
+    status: Mapped[ClaimStatus] = mapped_column(Enum(ClaimStatus), default=ClaimStatus.draft)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+
+
+class ClaimTransactionLink(Base):
+    """A claim is traced through specific source transactions. The same transaction linked to two claims = competing claim."""
+    __tablename__ = "claim_transaction_links"
+    __table_args__ = (UniqueConstraint("claim_id", "transaction_id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    claim_id: Mapped[str] = mapped_column(String(36), ForeignKey("victim_claims.id", ondelete="CASCADE"), index=True)
+    transaction_id: Mapped[str] = mapped_column(String(36), ForeignKey("transactions.id", ondelete="CASCADE"), index=True)
+    amount_minor: Mapped[int] = mapped_column(Integer)  # portion of the transaction attributed to this claim (<= transaction amount)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class FundsRecord(Base):
+    """Documented hold / restoration amounts. Requires a source evidence item; never inferred from a transaction."""
+    __tablename__ = "funds_records"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(12))  # held | restored
+    account_ref: Mapped[str] = mapped_column(String(120), index=True)
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    source_evidence_item_id: Mapped[str] = mapped_column(String(36), ForeignKey("evidence_items.id"))
+    source_kind: Mapped[str] = mapped_column(String(30))  # bank_notice | police_record | synthetic_simulated
+    is_simulated: Mapped[bool] = mapped_column(Boolean, default=False)
+    reference: Mapped[str] = mapped_column(String(120), default="")
+    recorded_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class CooperationPack(Base):
+    """Manual handoff pack aligned to the cross-state cooperation request fields. Never submitted automatically."""
+    __tablename__ = "cooperation_packs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    case_id: Mapped[str] = mapped_column(String(36), ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    fields: Mapped[dict] = mapped_column(JSON, default=dict)
+    attachment_file_ids: Mapped[list] = mapped_column(JSON, default=list)
+    fir_file_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    endorsement_file_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="draft")  # draft | supervisor_endorsed | export_ready
+    endorsed_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
+    exported_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)

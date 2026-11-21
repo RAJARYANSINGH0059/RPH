@@ -132,54 +132,92 @@ def money_edges(db: Session, case: Case) -> list[dict]:
     return edges
 
 
-def reconstruct_paths(db: Session, case: Case, *, max_hops: int = 4, max_paths: int = 50, window_hours: int = 96) -> list[dict]:
-    """Time-ordered multi-hop fund paths. A hop is only chained when it happens after the previous hop
-    (or time is unknown) and within the window. Deterministic ordering; no amounts are invented."""
+PATH_ALGORITHM_VERSION = "2.0.0"
+
+
+def reconstruct_paths(db: Session, case: Case, *, max_hops: int = 5, max_paths: int = 50, window_hours: int = 120) -> list[dict]:
+    """Time-ordered multi-hop fund paths with explicit uncertainty (algorithm v2).
+
+    Rules: a hop is chained only if it starts at or after the previous hop (unknown times are allowed but flagged) and
+    within `window_hours`; amounts are never invented: a hop larger than the running amount is flagged `merged_inflow`,
+    a smaller one `split`. Each hop is classed observed / corroborated / uncertain_time. A path ends `complete` when the
+    last account's own statement is in the case and shows no onward transfer (or a cash exit), otherwise `unresolved`
+    with the source that would resolve it. Sub-paths contained in longer paths are pruned. Deterministic.
+    """
     edges = [e for e in money_edges(db, case) if not e["duplicate"]]
     out_by: dict[str, list[dict]] = defaultdict(list)
-    in_count: dict[str, int] = defaultdict(int)
     for e in edges:
         out_by[e["src"]].append(e)
-        in_count[e["dst"]] += 1
-    # origins: every account with outgoing money; sub-paths contained in a longer path are pruned afterwards
-    origins = sorted(out_by)
+    alias = alias_map(db, case)
+    holders: set[str] = set()
+    for (acct,) in db.execute(select(Transaction.account_ref).where(Transaction.case_id == case.id).distinct()).all():
+        holders.add(alias.get(acct, acct))
     paths: list[dict] = []
-    internal_cap = max_paths * 6
+    internal_cap = max_paths * 8
 
-    def walk(acct: str, path: list[dict], last_time: datetime | None, visited: set[str]):
+    def hop_class(e: dict) -> str:
+        if e["precision"] in {"ambiguous", "unknown"}:
+            return "uncertain_time"
+        return "corroborated" if e["corroborated"] else "observed"
+
+    def walk(acct: str, path: list[dict], last_time, running: int | None, visited: set[str], flags: list[str]):
         if len(paths) >= internal_cap:
             return
         extended = False
         for nxt in sorted(out_by.get(acct, []), key=lambda e: (_tkey(e["time"]), e["amount_minor"], e["tx_id"])):
             if nxt["dst"] in visited or len(path) >= max_hops:
                 continue
+            hop_flags: list[str] = []
             if last_time and nxt["time"]:
                 if nxt["time"] < last_time or nxt["time"] - last_time > timedelta(hours=window_hours):
                     continue
+            elif path and nxt["time"] is None:
+                hop_flags.append("time_unknown")
+            if running is not None:
+                if nxt["amount_minor"] > running * 1.02:
+                    hop_flags.append("merged_inflow")  # more left than arrived: other funds joined; still a real transfer
+                elif nxt["amount_minor"] < running * 0.98:
+                    hop_flags.append("split")
             extended = True
-            walk(nxt["dst"], path + [nxt], nxt["time"] or last_time, visited | {nxt["dst"]})
-        if not extended and len(path) >= 1:
-            paths.append({"hops": [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in h.items()} for h in path],
+            walk(nxt["dst"], path + [{**nxt, "hop_class": hop_class(nxt), "flags": hop_flags}], nxt["time"] or last_time,
+                 nxt["amount_minor"], visited | {nxt["dst"]}, flags + hop_flags)
+        if not extended and path:
+            last = path[-1]["dst"]
+            times = [h["time"] for h in path if h["time"]]
+            temporal_ok = all(times[i] <= times[i + 1] for i in range(len(times) - 1)) and not any(h["hop_class"] == "uncertain_time" for h in path)
+            if last in holders:
+                status, reason, hint = "complete", None, None
+            else:
+                status = "unresolved"
+                reason = f"No statement for {last} is in the case; onward movement is unknown."
+                hint = f"Obtain the statement of {last} (or the beneficiary bank's transaction report) for the period after {path[-1]['time'].date() if path[-1]['time'] else 'the last hop'}."
+            entry, exit_ = path[0]["amount_minor"], path[-1]["amount_minor"]
+            classes = [h["hop_class"] for h in path]
+            path_class = "uncertain_time" if "uncertain_time" in classes else ("corroborated" if all(c == "corroborated" for c in classes) else "observed")
+            paths.append({"algorithm_version": PATH_ALGORITHM_VERSION,
+                          "hops": [{k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in h.items()} for h in path],
                           "accounts": [path[0]["src"]] + [h["dst"] for h in path],
-                          "total_in_minor": path[0]["amount_minor"], "exit_amount_minor": path[-1]["amount_minor"],
-                          "hop_count": len(path), "time_uncertain": any(h["precision"] in {"ambiguous", "unknown"} for h in path),
-                          "evidence_item_ids": [h["evidence_item_id"] for h in path]})
+                          "total_in_minor": entry, "exit_amount_minor": exit_, "conservation_ratio": round(exit_ / entry, 4) if entry else None,
+                          "hop_count": len(path), "path_class": path_class, "time_uncertain": any(c == "uncertain_time" for c in classes),
+                          "temporal_consistent": temporal_ok, "flags": sorted(set(flags)), "status": status, "unresolved_reason": reason,
+                          "resolution_hint": hint, "evidence_item_ids": [h["evidence_item_id"] for h in path]})
 
-    for o in origins:
-        walk(o, [], None, {o})
-    # prune paths whose hop sequence is a contiguous sub-sequence of a longer path
+    for o in sorted(out_by):
+        walk(o, [], None, None, {o}, [])
     seqs = [tuple(h["tx_id"] for h in p["hops"]) for p in paths]
     keep = []
     for i, p in enumerate(paths):
-        s = seqs[i]
-        contained = False
-        for j, other in enumerate(seqs):
-            if j != i and len(other) > len(s) and any(other[k:k + len(s)] == s for k in range(len(other) - len(s) + 1)):
-                contained = True
-                break
+        sq = seqs[i]
+        contained = any(j != i and len(other) > len(sq) and any(other[k:k + len(sq)] == sq for k in range(len(other) - len(sq) + 1)) for j, other in enumerate(seqs))
         if not contained:
             keep.append(p)
     keep.sort(key=lambda p: (-p["hop_count"], -p["total_in_minor"], p["accounts"][0]))
+    # alternatives: paths sharing the same first hop are alternative continuations
+    first_hop_count: dict[str, int] = defaultdict(int)
+    for p in keep:
+        first_hop_count[p["hops"][0]["tx_id"]] += 1
+    for p in keep:
+        p["alternatives"] = first_hop_count[p["hops"][0]["tx_id"]] - 1
     return keep[:max_paths]
 
 

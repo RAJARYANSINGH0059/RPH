@@ -69,6 +69,33 @@ def evaluate(db, case, truth: dict, cfg: str) -> dict:
     # canonicalise truth too (truth uses acct_no everywhere; alias map may canonicalise to vpa when no statement exists)
     true_edges_c = {(alias.get(a, a), alias.get(b, b)) for a, b in true_edges}
     path = prf(len(edges & true_edges_c), len(edges - true_edges_c), len(true_edges_c - edges))
+    # --- path-level metrics (algorithm v2): coverage, false-path rate, amount conservation, temporal consistency, unresolved rate
+    t_paths = time.time()
+    rpaths = gengine.reconstruct_paths(db, case)
+    path_runtime = time.time() - t_paths
+    hop_true = {(alias.get(t["src"], t["src"]), alias.get(t["dst"], t["dst"])): t for t in truth["transactions"] if t["hop"] > 0}
+    observable_hop_edges = {(alias.get(t["src"], t["src"]), alias.get(t["dst"], t["dst"])) for t in observable if t["hop"] > 0}
+    true_chains = []
+    for tp in truth["paths"]:
+        accts = [alias.get(a, a) for a in tp["accounts"]]
+        chain = []
+        for a, b in zip(accts, accts[1:]):
+            if (a, b) in observable_hop_edges and (not chain or chain[-1][1] == a):
+                chain.append((a, b))
+            else:
+                break
+        if chain:
+            true_chains.append(chain)
+    recon_chains = [list(zip(pth["accounts"], pth["accounts"][1:])) for pth in rpaths]
+    covered = sum(1 for ch in true_chains if any(all(e in rc for e in ch) for rc in recon_chains))
+    false_paths = sum(1 for rc in recon_chains if any(e not in hop_true for e in rc))
+    complete = [pth for pth in rpaths if pth["status"] == "complete"]
+    path_metrics = {"coverage": round(covered / len(true_chains), 4) if true_chains else 1.0,
+                    "false_path_rate": round(false_paths / len(rpaths), 4) if rpaths else 0.0,
+                    "amount_conservation_mean": round(sum(pth["conservation_ratio"] or 0 for pth in complete) / len(complete), 4) if complete else None,
+                    "temporal_consistency_rate": round(sum(1 for pth in rpaths if pth["temporal_consistent"]) / len(rpaths), 4) if rpaths else 1.0,
+                    "unresolved_hop_rate": round(sum(1 for pth in rpaths if pth["status"] == "unresolved") / len(rpaths), 4) if rpaths else 0.0,
+                    "paths": len(rpaths), "runtime_seconds": round(path_runtime, 4)}
     # --- entity resolution: alias edges correct (vpa<->acct of same account) vs wrong
     er_tp = er_fp = 0
     vpa_to_acct = {a["vpa"]: a["acct_no"] for a in truth["accounts"]}
@@ -120,7 +147,7 @@ def evaluate(db, case, truth: dict, cfg: str) -> dict:
         tp += pred and is_mule
         fp += pred and not is_mule
         fn += (not pred) and is_mule
-    return {"field_extraction": field, "transaction_path": path, "entity_resolution": entity_res, "similar_names_wrongly_merged": merged_similar,
+    return {"field_extraction": field, "transaction_path": path, "path_metrics": path_metrics, "entity_resolution": entity_res, "similar_names_wrongly_merged": merged_similar,
             "false_link_count": false_links, "shared_ip_false_link_rate": round(false_links / shared_ip_pairs, 4) if shared_ip_pairs else 0.0,
             "shared_ip_pairs": shared_ip_pairs, "temporal_validity_accuracy": round(temporal_acc, 4), "evidence_coverage": round(evidence_cov, 4),
             "counter_evidence_recall": round(ce_recall, 4), "triage_rules": prf(tp, fp, fn), "eval_seconds": round(time.time() - t0, 3)}
@@ -129,11 +156,13 @@ def evaluate(db, case, truth: dict, cfg: str) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=6)
+    ap.add_argument("--seed-start", type=int, default=500, help="use 700+ for the frozen held-out range")
+    ap.add_argument("--heldout-scenario", default="", help="scenario family reported separately as held-out (never used for tuning)")
     ap.add_argument("--size", default="small")
     ap.add_argument("--out", default=str(ROOT / "tests" / "benchmark" / "results" / "benchmark_summary.json"))
     args = ap.parse_args()
     Base.metadata.create_all(bind=engine)
-    seeds = list(range(500, 500 + args.seeds))
+    seeds = list(range(args.seed_start, args.seed_start + args.seeds))
     per_case = []
     t_start = time.time()
     with SessionLocal() as db:
@@ -164,17 +193,41 @@ def main():
         vals = [r[key] if not isinstance(r[key], dict) else r[key]["f1"] for r in rows]
         return round(statistics.mean(vals), 4) if vals else None
 
+    def agg_path(rows):
+        keys = ("coverage", "false_path_rate", "amount_conservation_mean", "temporal_consistency_rate", "unresolved_hop_rate", "runtime_seconds")
+        out = {}
+        for k in keys:
+            vals = [r["path_metrics"][k] for r in rows if r["path_metrics"].get(k) is not None]
+            if vals:
+                m = statistics.mean(vals)
+                # bootstrap 95% interval (deterministic seed)
+                import random as _r
+                rng = _r.Random(0)
+                bs = sorted(statistics.mean(rng.choices(vals, k=len(vals))) for _ in range(300))
+                out[k] = {"mean": round(m, 4), "ci95": [round(bs[7], 4), round(bs[292], 4)], "n": len(vals)}
+        return out
+
     summary = {"generator_version": GENERATOR_VERSION, "seeds": seeds, "size": args.size, "cases_per_config": len(per_case) // len(CONFIGS),
                "total_runs": len(per_case), "reproducible_same_seed": reproducible, "wall_seconds": round(time.time() - t_start, 1), "by_config": {}, "by_difficulty_full": {}}
     for cfg in CONFIGS:
         rows = [r for r in per_case if r["config"] == cfg]
         summary["by_config"][cfg] = {k: agg(rows, k) for k in ("field_extraction", "transaction_path", "entity_resolution", "false_link_count", "shared_ip_false_link_rate",
                                                                 "temporal_validity_accuracy", "evidence_coverage", "counter_evidence_recall", "triage_rules", "ingest_seconds", "eval_seconds")}
+        summary["by_config"][cfg]["path_metrics"] = agg_path(rows)
         summary["by_config"][cfg]["similar_names_wrongly_merged_total"] = sum(r["similar_names_wrongly_merged"] for r in rows)
         summary["by_config"][cfg]["false_links_total"] = sum(r["false_link_count"] for r in rows)
     for diff in DIFFICULTIES:
         rows = [r for r in per_case if r["config"] == "D_ps05x_full" and r["difficulty"] == diff]
         summary["by_difficulty_full"][diff] = {k: agg(rows, k) for k in ("field_extraction", "transaction_path", "false_link_count", "temporal_validity_accuracy", "counter_evidence_recall")}
+        summary["by_difficulty_full"][diff]["path_metrics"] = agg_path(rows)
+    summary["by_scenario_full"] = {}
+    for sc in SCENARIOS:
+        rows = [r for r in per_case if r["config"] == "D_ps05x_full" and r["scenario"] == sc]
+        summary["by_scenario_full"][sc] = {"transaction_path_f1": agg(rows, "transaction_path"), "path_metrics": agg_path(rows), "held_out": sc == args.heldout_scenario}
+    summary["path_algorithm_version"] = gengine.PATH_ALGORITHM_VERSION
+    summary["seed_start"] = args.seed_start
+    summary["heldout_scenario"] = args.heldout_scenario or None
+    summary["statement"] = "All metrics are measured on synthetic, sealed-truth cases. F1 is not accuracy. No real-world transfer is claimed."
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "per_case": per_case}, indent=1))

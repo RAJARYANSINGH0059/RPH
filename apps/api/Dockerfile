@@ -4,7 +4,9 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+# Tesseract with English + Hindi trained data for scanned PDFs/images (RapidOCR is the pure-Python fallback)
+RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-eng tesseract-ocr-hin && rm -rf /var/lib/apt/lists/*
+ENV OCR_ENGINE=auto
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt

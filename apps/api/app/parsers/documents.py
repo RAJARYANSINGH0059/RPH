@@ -21,6 +21,7 @@ class TextBlock:
     text: str
     method: str  # text_layer|ocr|docx_paragraph|docx_table|plain
     confidence: float | None = None
+    ocr: dict | None = None  # engine, version, confidence, quality, boxes
 
 
 @dataclass
@@ -34,21 +35,19 @@ class DocumentResult:
         return "\n".join(b.text for b in self.blocks)
 
 
-def _ocr_available() -> bool:
-    try:
-        import pytesseract  # noqa: F401
-        import shutil
-        return shutil.which("tesseract") is not None
-    except Exception:
-        return False
-
-
-def _ocr_image_bytes(png: bytes) -> tuple[str, float | None]:
-    import pytesseract
-    from PIL import Image
-    img = Image.open(io.BytesIO(png))
-    text = pytesseract.image_to_string(img)
-    return text, None
+def _ocr_block(png: bytes, locator: dict) -> tuple["TextBlock | None", list[str]]:
+    """Run the configured OCR engine; return (block, warnings). Block is None when no engine is available."""
+    from app.parsers import ocr as ocr_mod
+    res = ocr_mod.ocr_image(png)
+    loc_s = ",".join(f"{k} {v}" for k, v in locator.items())
+    if res is None:
+        return None, [f"{loc_s}: no_text_layer_ocr_unavailable_manual_review_required"]
+    state = "low_confidence" if res.quality != "ok" else "used"
+    warnings = [f"{loc_s}: ocr_{res.engine}_{state}_review_required"] + [f"{loc_s}: {w}" for w in res.warnings]
+    block = TextBlock(locator, res.text, "ocr", res.confidence)
+    block.ocr = {"engine": res.engine, "engine_version": res.engine_version, "confidence": res.confidence, "quality": res.quality,
+                 "languages": res.languages, "boxes": res.boxes[:200]}
+    return block, warnings
 
 
 def parse_pdf_bytes(data: bytes, max_pages: int = 200) -> DocumentResult:
@@ -62,26 +61,21 @@ def parse_pdf_bytes(data: bytes, max_pages: int = 200) -> DocumentResult:
         return DocumentResult([], warnings, doc.page_count)
     if doc.page_count > max_pages:
         warnings.append(f"page_limit_{max_pages}_applied")
-    ocr_ok = None
     for pno in range(min(doc.page_count, max_pages)):
         page = doc[pno]
         text = page.get_text("text") or ""
         if text.strip():
             blocks.append(TextBlock({"page": pno + 1}, text, "text_layer"))
             continue
-        # no text layer -> OCR fallback
-        if ocr_ok is None:
-            ocr_ok = _ocr_available()
-        if ocr_ok:
-            try:
-                pix = page.get_pixmap(dpi=200)
-                t, conf = _ocr_image_bytes(pix.tobytes("png"))
-                blocks.append(TextBlock({"page": pno + 1}, t, "ocr", conf))
-                warnings.append(f"page_{pno + 1}_ocr_used_low_confidence_review_required")
-            except Exception as exc:  # pragma: no cover
-                warnings.append(f"page_{pno + 1}_ocr_failed:{type(exc).__name__}")
-        else:
-            warnings.append(f"page_{pno + 1}_no_text_layer_ocr_unavailable")
+        # no text layer -> OCR fallback through the configured engine
+        try:
+            pix = page.get_pixmap(dpi=200)
+            block, w = _ocr_block(pix.tobytes("png"), {"page": pno + 1})
+            warnings += w
+            if block is not None:
+                blocks.append(block)
+        except Exception as exc:  # pragma: no cover
+            warnings.append(f"page_{pno + 1}_ocr_failed:{type(exc).__name__}")
     return DocumentResult(blocks, warnings, doc.page_count)
 
 
@@ -112,12 +106,10 @@ def parse_txt_bytes(data: bytes) -> DocumentResult:
 
 
 def parse_image_bytes(data: bytes) -> DocumentResult:
-    warnings: list[str] = []
-    if not _ocr_available():
-        return DocumentResult([], ["ocr_unavailable_image_stored_for_manual_review"], 1)
     try:
-        text, conf = _ocr_image_bytes(data)
-        warnings.append("ocr_used_low_confidence_review_required")
-        return DocumentResult([TextBlock({"page": 1}, text, "ocr", conf)], warnings, 1)
+        block, warnings = _ocr_block(data, {"page": 1})
     except Exception as exc:  # pragma: no cover
         return DocumentResult([], [f"ocr_failed:{type(exc).__name__}"], 1)
+    if block is None:
+        return DocumentResult([], ["ocr_unavailable_image_stored_for_manual_review"], 1)
+    return DocumentResult([block], warnings, 1)
