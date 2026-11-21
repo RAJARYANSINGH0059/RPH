@@ -29,6 +29,12 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 
 1. Credit preflight → 2. models/auth/migrations → 3. parsers + ingestion → 4. graph engine + rules → 5. connectors → 6. synthetic factory + sealed store → 7. reports + routers → 8. tests → 9. ML training → 10. benchmark → 11. frontend → 12. deploy config + docs.
 
+## Deployment (2026-11-21)
+
+- GitHub: https://github.com/RAJARYANSINGH0059/RPH (`main`)
+- Render API: https://ps05x-api.onrender.com (service `srv-dc0noo67bikc73bbqjug`, Postgres `ps05x-db`), deployed via `scripts/render_deploy.py`; health checks 200.
+- Vercel web: https://ps05x-web.vercel.app (project `ps05x-web`), deployed via `vercel deploy --prod` after upgrading Next.js to 15.5.x (Vercel refuses 15.1.x as vulnerable).
+
 ## Access blockers
 
 - The folder initially sat inside a stray, commit-less git repository rooted at the user's home directory (`C:/Users/rajar/.git`). A dedicated repository was initialised in the project folder on `main` so that only project files are tracked; the stray home-directory repository was left untouched for the user to remove.
