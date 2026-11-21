@@ -22,7 +22,10 @@ apps/api        FastAPI + SQLAlchemy + Alembic + NetworkX + scikit-learn (Render
 apps/web        Next.js 15 + TypeScript + Tailwind + Cytoscape.js + Recharts (Vercel)
 ml/             training/dataset.py, training/train.py, evaluation/inference.py, artifacts/ (checksummed model)
 tests/          benchmark/run_benchmark.py, e2e/test_model_inference.py
-docs/           ARCHITECTURE, DEPLOYMENT, DEMO_SCRIPT, LIMITATIONS, MODEL_CARD, BENCHMARK, IMPLEMENTATION_STATUS, CREDIT_BUDGET_PREFLIGHT
+docs/           ARCHITECTURE, DEPLOYMENT, DEMO_SCRIPT, LIMITATIONS, MODEL_CARD, BENCHMARK, BENCHMARK_V2, FEATURE_MATRIX, IMPLEMENTATION_STATUS,
+                GLOBAL_COMPETITIVE_LANDSCAPE, RAJASTHAN_OPERATIONAL_FIT, OPERATION_LIFECYCLE_AND_DEPENDENCY_MODEL, ROLE_SENSITIVE_REVIEW_SAFEGUARDS,
+                PROOF_CERTIFICATE_SPEC, BOUNDED_FUND_ATTRIBUTION_SPEC, COMPETITION_READINESS_REPORT
+scripts/        render_deploy.py, run_local.ps1, verify_proof.py (offline proof verifier), check-nav.mjs (navigation registry check)
 render.yaml     Render blueprint (API + Postgres) · apps/web/vercel.json · .github/workflows/ci.yml · .env.example
 ```
 
@@ -45,19 +48,22 @@ Frontend:
 cd apps/web; npm install; npm run dev
 ```
 
-Open http://localhost:3000, sign in as `analyst@demo.local` with the password you set, then **Synthetic Case Factory → Generate**. Demo accounts exist only when their `DEMO_*_PASSWORD` variable is set; nothing is hard-coded. Copy `.env.example` to `apps/api/.env` for persistent settings.
+Open http://localhost:3000 and press **SIGN IN** (one click, no password): the API creates an isolated, expiring `demo_analyst` principal that can only see and generate synthetic cases; the token lives in an HttpOnly cookie set by the Next.js BFF, never in `localStorage`. Staff sign-in (`analyst@demo.local` etc.) is at `/staff/login` and exists only when the matching `DEMO_*_PASSWORD` variable is set; nothing is hard-coded. Then **Synthetic Case Factory → Generate** (defaults to *Operation Desert Mirage*, seed 1001). Copy `.env.example` to `apps/api/.env` for persistent settings.
 
 ## Tests, training, benchmark
 
 | What | Command | Result in this build |
 |---|---|---|
-| Backend unit/integration/security/determinism/migration/cross-case/OCR/claims | `cd apps/api; python -m pytest -q` | 58 passed |
+| Backend unit/integration/security/determinism/migration/cross-case/OCR/claims/bridge/twin/proof/lifecycle/roles/bounded/adversary/lab/demo isolation | `cd apps/api; python -m pytest -q` | 103 passed |
 | Model inference (checksum-verified artefact) | `python -m pytest tests/e2e -q` | 3 passed |
 | Frontend | `cd apps/web; npm run lint; npm run typecheck; npm run build` | clean, build OK |
 | Train triage model (scenario-level split) | `python ml/training/train.py --seeds 12` | random forest retained: test F1 0.789 vs rules 0.503 |
 | Smoke benchmark (4 configs × 96 cases) | `python tests/benchmark/run_benchmark.py --seeds 4` | 0 false links with safeguards vs 144 without |
+| Benchmark v2 (next-wave metrics, 5 families × 6 seeds) | `python tests/benchmark/run_benchmark_v2.py --seeds 6 --seed-start 1500` | attribution coverage 1.00, false-exact 0, proof verify/tamper 1.00/1.00, innocent triage flag rate 0.049 |
+| Navigation registry (every route once) | `node --experimental-strip-types scripts/check-nav.mjs` | 12 groups, 74 feature routes, 3 utility routes, 0 problems |
+| Offline proof verifier | `python scripts/verify_proof.py <proof.json> --files <dir>` | PASS on originals, FAIL on any modified file |
 
-Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`.
+Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`, `docs/BENCHMARK_V2.md`. Synthetic scores show internal consistency, not real-world accuracy.
 
 ## Gap-closure increment (branch `feat/ps05-cross-case-restitution`)
 
@@ -69,6 +75,24 @@ Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`.
 - **S3-compatible storage adapter** (`STORAGE_BACKEND=s3`) with hash verification and signed URLs; health reports storage and OCR status.
 - **Premium light-mode UI**: navy rail, sandstone canvas, design tokens, breadcrumbs, environment pills, skeletons, retry states. See `docs/UI_UX_REDESIGN.md`.
 
+## Digital-twin increment (branch `feat/ps05-digital-twin`, 2026-11-22)
+
+Feature-by-feature status with test evidence: `docs/FEATURE_MATRIX.md`. Headlines:
+
+- **Fraud-operation digital twin** (`/cases/{id}/twin`, journey, replay): every observed, reported, derived and unresolved event on one time axis with layers (victim, payment, money, infrastructure, account control, investigation); as-of replay compares two moments.
+- **Payment-instruction bridge**: QR codes and `upi://` payloads are decoded, parsed and matched to statement rows at EXACT / CORROBORATED / CANDIDATE / CONFLICTED levels; missing currency is never assumed.
+- **Evidence coverage**: OBSERVED_ZERO is kept apart from NOT_SUPPLIED, PARSE_FAILED, OCR_UNRELIABLE and CURRENT_ONLY; statement gaps are detected; negative claims are warned about.
+- **Proof-carrying money trail**: every fund path exports a manifest (locators, raw cells, hashes, rule versions, constraints) that `scripts/verify_proof.py` re-derives offline without the application; tampering fails.
+- **Bounded fund provenance**: a two-commodity LP over statement balances gives min/max victim-origin amounts per hop; gaps become unknown movements; FIFO/LIFO are labelled scenarios, never defaults.
+- **FATF-attributed lifecycle & dependency map**, **IVOI next-evidence ranking**, **Evidence Acquisition** (custodian catalogue, draft lifecycle, manual dispatch record, never transmitted), **Preservation desk**, **completeness checklist**.
+- **Role-sensitive review** (nine propositions, protected attributes rejected, human decision) and **account-control timeline** (holder ≠ controller).
+- **Evidence adversary / CounterProof**, versioned hypotheses with independent blind review and dissent, **counterfactual lab** (14 perturbations on a copy), **hypothesis branches**.
+- **Chokepoints & network-adaptation simulator**, **intervention impact** with acknowledgement gate (no action is ever taken), **statement forensics** and PDF metadata leads, **campaign DNA** with identifier rotation, keyed-token privacy matching (off without a server key), prevention-rule compiler with approval gate.
+- **Blind investigation challenge**: sealed truth is revealed only after a locked submission, on synthetic cases only; the reveal also scores a deliberately unsafeguarded graph-only baseline on the same case.
+- **Evidence-request responses** (returned records attached to a request; a partial response keeps the unresolved remainder visible), **reversal/refund handling** in bounded attribution (gross vs net, never netted silently) and a **proof-carrying investigation package** ZIP with a SHA-256 manifest that refuses to include sealed truth.
+- **UI**: one permanent hierarchical left navigation (12 groups, every route exactly once, checked in CI), premium light theme, domain motion scenes with reduced-motion fallbacks, linked graph workbench (layers, clusters, time window, path replay, saved views, linked table/timeline), 15-step guided walkthrough, one-click demo sign-in.
+- **Synthetic factory 0.4.1**: Operation Desert Mirage (three districts, QR + UPI link, rotated domain, commingled salary, missing statement period, OCR-corrupted VPA, simulated hold), identifier rotation, commingled funds, benign look-alike, compromised account.
+
 ## What the verification layer guarantees
 
 - Money is integer paise; raw strings and cell/row/page/JSON-path locators are kept for every field.
@@ -78,11 +102,13 @@ Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`.
 - A VPA in one statement and an account number in another are bridged only by matching reference + amount (derived `SAME_ACCOUNT_IDENTIFIER`).
 - DNS/hosting observations outside the transaction window are marked **stale**; connector lookups are labelled *current, not historical*.
 - Promoting a candidate relationship requires a supervisor; every review and export is in the append-only audit log.
-- Sealed synthetic ground truth is never served by case APIs (tested).
+- Sealed synthetic ground truth is never served by case APIs (tested); the blind challenge reveals it only after a locked submission.
+- Missing evidence is reported as *not supplied*, never as zero; current DNS/RDAP is never shown as historical; bounded attribution reports ranges, never a traced rupee.
+- No account is ever frozen, notified or acted upon by the system; intervention and resilience views are hypothetical simulations behind an acknowledgement.
 
 ## Security notes
 
-Argon2id password hashing, HS256 JWT (set a ≥32-byte `JWT_SECRET`), role checks, case-level access on every route (non-members get 404), magic-byte file-type checks, size limits, random storage keys, immutable originals with SHA-256, SSRF guard on connectors (https-only allowlist, blocked private/metadata ranges, no redirects, size/content-type limits), uploads never executed or opened in a browser, no bank data sent to any LLM.
+Argon2id password hashing, HS256 JWT (set a ≥32-byte `JWT_SECRET`), browser sessions held in an HttpOnly same-origin cookie by the Next.js BFF (`/api/session/*`, `/api/proxy/*`) with scoped 10-minute tokens for direct uploads/downloads, isolated expiring demo principals (origin check + per-IP rate limit), role checks, case-level access on every route (non-members get 404), magic-byte file-type checks, size limits, random storage keys, immutable originals with SHA-256, SSRF guard on connectors (https-only allowlist, blocked private/metadata ranges, no redirects, size/content-type limits), uploads never executed or opened in a browser, no bank data sent to any LLM.
 
 ## Deployment
 

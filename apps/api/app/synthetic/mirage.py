@@ -47,6 +47,14 @@ def shape_truth(gen: Generator, truth: Truth) -> Truth:
             r = gen._ref()
             truth.transactions.append(Tx(r, first_onward.when - timedelta(hours=3), employer, m1, 45_000_00 if sc == "commingled_funds" else 18_000_00, "NEFT", f"NEFT/{r}/SALARY MARCH", 0, -1))
             truth.chaos.append({"kind": "commingled_credit", "account": m1.acct_no, "ref": r})
+            if sc == "commingled_funds":
+                # a payment out of the collection account that is reversed the same day: must appear as gross vs net, never netted silently
+                supplier = gen._acct("unrelated", "Fictional Supplies Traders")
+                truth.accounts.append(supplier)
+                r1, r2 = gen._ref(), gen._ref()
+                truth.transactions.append(Tx(r1, first_onward.when - timedelta(hours=2), m1, supplier, 7_000_00, "IMPS", f"IMPS/{r1}/ADVANCE", 0, -1))
+                truth.transactions.append(Tx(r2, first_onward.when - timedelta(hours=1), supplier, m1, 7_000_00, "IMPS", f"IMPS/{r2}/REV {r1} REVERSAL", 0, -1))
+                truth.chaos.append({"kind": "reversal_pair", "account": m1.acct_no, "debit_ref": r1, "credit_ref": r2, "amount_minor": 7_000_00})
         # simulated allocation: the operator forwards victim funds in arrival order (sealed; used only to score bound coverage)
         alloc = []
         pool = []  # (victim_acct, remaining)

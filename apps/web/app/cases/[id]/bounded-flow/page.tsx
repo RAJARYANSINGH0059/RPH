@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import CasePage from "@/components/CasePage";
 import { MotionScene } from "@/components/motion";
-import { Chip, Limitations, Money, Raw, Section, State, Table, useApi, When } from "@/components/ui";
+import { Chip, KV, Limitations, Money, Raw, Section, State, Table, useApi, When } from "@/components/ui";
 
 export default function BoundedFlowPage() {
   return <CasePage title="Bounded Fund Provenance" subtitle="Feasible minimum and maximum victim-origin amounts on each onward transfer, solved as a linear programme over the account's balance history. A range is the honest answer after commingling." pageKey="bounded">{(c, id) => <Body id={id} />}</CasePage>;
@@ -53,6 +53,13 @@ function Body({ id }: { id: string }) {
             <div className="grid gap-3 lg:grid-cols-2">
               <Section title="Invariant facts" hint="True under every feasible allocation."><ul className="list-disc pl-5 text-sm">{data.invariant_facts?.length ? data.invariant_facts.map((x: string) => <li key={x}>{x}</li>) : <li className="muted">None established.</li>}</ul></Section>
               <Section title="Possible, not invariant"><ul className="list-disc pl-5 text-sm">{data.possible_not_invariant?.length ? data.possible_not_invariant.map((x: string) => <li key={x}>{x}</li>) : <li className="muted">—</li>}</ul></Section>
+              {data.gross_net && (
+                <Section title="Gross vs net onward transfers" hint="Reversals and refunds are shown, never netted silently.">
+                  <KV rows={[["Gross onward (this path)", <Money key="g" v={data.gross_net.gross_onward_minor} />], ["Reversed onward", <Money key="r" v={data.gross_net.reversed_onward_minor} />], ["Net onward", <Money key="n" v={data.gross_net.net_onward_minor} />], ["Reversal pairs detected in the account", String(data.gross_net.reversals_detected)]]} />
+                  <p className="mt-1 text-xs muted">{data.gross_net.definitions}</p>
+                  {(data.reversals || []).length > 0 && <Table dense cols={["Account", "Debit ref", "Credit ref", "Amount", "Handling"]} rows={data.reversals.map((r: any) => [<span key="a" className="mono">{r.account?.slice(-6)}</span>, <span key="d" className="mono">{r.debit_reference || "—"}</span>, <span key="c" className="mono">{r.credit_reference || "—"}</span>, <Money key="m" v={r.amount_minor} />, <span key="h" className="text-xs">{r.handling}</span>])} />}
+                </Section>
+              )}
               <Section title="Missing evidence that would narrow the interval"><Table dense cols={["Account", "Needed", "Effect"]} rows={(data.missing_evidence || []).map((m: any) => [m.account, m.needed, m.effect])} empty="Nothing missing on this path." /></Section>
               <Section title="Assumptions and inconsistencies">
                 <ul className="list-disc pl-5 text-sm">{(data.assumptions || []).map((a: any, i: number) => <li key={i}><span className="font-medium">{a.account?.slice(-6)}:</span> {a.assumption}</li>)}{(data.inconsistencies || []).map((a: any, i: number) => <li key={"i" + i} className="danger">{a.account?.slice(-6)}: {a.issue}{a.handling ? ` — ${a.handling}` : ""}</li>)}{!data.assumptions?.length && !data.inconsistencies?.length && <li className="muted">None.</li>}</ul>

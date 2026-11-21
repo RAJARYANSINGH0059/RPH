@@ -42,6 +42,26 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 | P2 scam-artifact intake | Deferred | — |
 | Phase 3 UI | Done (tokens, shell, sign-in, all pages restyled, new screens) | `apps/web` |
 
+## Digital-twin increment (2026-11-22, branch feat/ps05-digital-twin)
+
+Full matrix with statuses and test evidence: `docs/FEATURE_MATRIX.md`.
+
+| Area | Status | Where |
+|---|---|---|
+| Models + migration `2222d8017e5e` (9 tables, demo users) | Done | `app/models/twin.py`, `alembic/versions` |
+| Payment-instruction bridge (QR/UPI decode, parse, match, PDF) | Done, 7 tests | `app/parsers/qr.py`, `app/services/payment_bridge.py` |
+| Twin / journey / replay / coverage / proof / temporal fusion | Done, 7 tests | `app/services/{twin,coverage,proof,temporal}.py`, `scripts/verify_proof.py` |
+| Lifecycle, roles, control timeline, evidence acquisition, IVOI, preservation, completeness | Done, 4 tests | `app/services/{lifecycle,roles,dependencies,completeness}.py` |
+| Bounded flow LP, adversary, hypotheses/reviews, lab, branches, resilience, intervention, integrity, campaign, privacy tokens, rule compiler | Done, 12 tests | `app/services/*` |
+| Demo sessions, BFF cookie, short tokens, role gates | Done, 3 tests | `app/routers/auth.py`, `core/deps.py`, `apps/web/app/api/*`, `apps/web/lib/server.ts` |
+| Synthetic 0.4.1 (Desert Mirage, rotation, commingled, benign look-alike, compromised) + blind challenge | Done, 6 tests | `app/synthetic/{mirage,generator,artifacts,challenge}.py` |
+| Routers `intel`, `intel_global`, `benchmark`; synthetic challenge routes | Done (114 routes) | `app/routers` |
+| Navigation registry (12 groups / 74 + 3 routes) + CI check | Done | `apps/web/lib/nav.ts`, `scripts/check-nav.mjs` |
+| Shell, UI kit, motion scenes, graph workbench, 12 hand-written + 50 generated pages, walkthrough | Done; visual verification only | `apps/web/components`, `apps/web/app` |
+| Benchmark v2 | Done (6 seeds) | `tests/benchmark/run_benchmark_v2.py`, `docs/BENCHMARK_V2.md` |
+| Next-wave gap closure: request responses with remainder, reversal gross/net, investigation package, graph-only baseline, cross-case alternatives | Done, 5 tests | `app/services/{package,baseline}.py`, `app/synthetic/challenge.py`, `tests/test_nextwave_gaps.py` |
+| Backend tests total | **103 passed** (`python -m pytest -q`) | `apps/api/tests` |
+
 ## Deployment (2026-11-21)
 
 - GitHub: https://github.com/RAJARYANSINGH0059/RPH (`main`)

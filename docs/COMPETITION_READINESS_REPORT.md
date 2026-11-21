@@ -1,83 +1,78 @@
-# Competition readiness report — PS05-X (2026-11-21)
+# Competition readiness report and handover — PS05-X (2026-11-22)
 
-Repository: https://github.com/RAJARYANSINGH0059/RPH · branch `feat/ps05-cross-case-restitution`, fast-forwarded into `main`.
-Scope: gap-closure run on top of the existing FastAPI + Next.js + SQLAlchemy/Alembic + NetworkX architecture (nothing rebuilt).
+Repository: https://github.com/RAJARYANSINGH0059/RPH · branch `feat/ps05-digital-twin` (starting commit `3db7f83` on `main`; increment commits `02387f8`, `1df8f65` and the next-wave gap-closure commit that follows this report).
+Scope: the Global Research Integrated Master Prompt, the Claude Implementation Prompt and the Next-Wave Implementation Prompt, implemented inside the existing FastAPI + Next.js + SQLAlchemy/Alembic + NetworkX architecture. Nothing was rebuilt; the gap-closure increment of 2026-11-21 remains intact (its report is in the git history of this file at commit `3db7f83`).
 
-## 1. Completed work
+## 1. Preservation check
 
-| Area | Delivered | Evidence |
-|---|---|---|
-| Cross-case money-trail correlation (P0-A) | Permission-aware query-time service; classes exact / corroborated / derived / candidate / stale; provenance per link (source case, file SHA-256, locator, method/version, event/observed time, quality flags, limitations, counter-evidence); similar names reported under *not asserted*; membership grant/revoke; `/crosscase` workspace and per-case *Related cases* panel with accessible tables | `apps/api/app/services/crosscase.py`, `routers/crosscase.py`, `tests/test_crosscase.py` (7 tests), `apps/web/components/CrossCase.tsx` |
-| OCR (P0-B) | Engine chain Tesseract (eng+hin, Dockerfile) → RapidOCR (pure Python) → explicit unavailable warning; engine, version, confidence, quality and boxes stored on evidence; low-confidence mentions are graph candidates; OCR preview in Upload with “needs human verification” | `parsers/ocr.py`, `parsers/documents.py`, `tests/test_ocr_and_storage.py` (7 OCR tests, incl. engine-absent) |
-| Path reconstruction v2 (P0-C) | Hop classes (observed / corroborated / uncertain_time), split/merge flags, explicit unresolved hops with the statement that would resolve them, alternatives, no invented accounts; benchmark adds coverage, false-path rate, amount conservation, temporal consistency, unresolved-hop rate, runtime with bootstrap 95% CIs; frozen held-out seed range and held-out typology | `graph/engine.py`, `tests/benchmark/run_benchmark.py`, `docs/BENCHMARK.md` |
-| Victim claims & restitution readiness (P1-A) | New tables + Alembic migration `7e960fbc555c`; claimed / traced / documented-held / restored / unresolved kept apart; distinct-transaction counting; competing and duplicate detection; hold/restoration records require a non-statement source document; simulated holds labelled; approval states draft → investigator → supervisor → export ready; PDF/JSON pack; audit on every action; synthetic multi-victim scenario now ships a simulated hold notice | `services/claims.py`, `routers/claims.py`, `tests/test_claims_and_cooperation.py`, `apps/web/app/cases/[id]/claims` |
-| Cross-state cooperation pack (P1-B) | Required-field and 10–500 character validation, FIR + supervisor-endorsement attachments, supervisor endorsement gate, ZIP with manifest.json (hashes), summary PDF, attachments and money/infra trace; no portal automation | `routers/cooperation.py`, `apps/web/app/cases/[id]/cooperation` |
-| Durable storage (P1-C) | S3-compatible adapter (private bucket, server-side credentials, hash verification on write/read, signed URLs ≤15 min, size limit, visible fallback); health reports backend | `services/storage.py` |
-| UI/UX | Light-mode “operations room” design tokens, navy rail, sandstone canvas, breadcrumbs, environment pills (synthetic / uploaded / no live connection), skeleton and retry states, all pages restyled, three new screens; mobile navigation; no insignia; label “PS05-X · Investigative prototype” | `docs/UI_UX_REDESIGN.md` |
-| Latency | gzip middleware, bounded OCR threads, OCR off on the 512 MiB instance (the OCR runtime caused an OOM kill) | `app/main.py`, `parsers/ocr.py`, Render env |
+- All 58 pre-existing backend tests still pass unchanged (cross-case, OCR chain, claims, cooperation, storage adapter, migrations, RBAC, parsers, determinism, sealed-truth non-exposure).
+- Every pre-existing route is still registered (122 routes in total); response contracts were extended, never changed.
+- Regressions found and fixed during the increment: SQLite "database is locked" under parallel dashboard reads (WAL + 30 s busy timeout); plain-text captures mis-detected as CSV (`detect_kind` tightened); a generator artefact that perturbed a duplicated row so a planted balance break was unobservable (generator 0.4.1).
+- Local databases created before the increment have no Alembic stamp; the documented recovery is `alembic stamp 7e960fbc555c` then `alembic upgrade head` (or move the disposable file aside).
 
-Deferred: P2 scam-artifact intake, Hindi UI labels, 600-case benchmark, S3 enabled on the live service (see `docs/REMAINING_BLOCKERS.md`).
+## 2. Feature status (definitions: `docs/FEATURE_MATRIX.md`)
 
-## 2. Tests and checks (actually run)
+Implemented and verified (API + UI + permissions + persistence + tests executed): payment-instruction bridge; fraud-operation digital twin, victim journey, investigation replay; evidence coverage; proof-carrying money trail with offline verifier; temporal evidence fusion; FATF-attributed lifecycle and dependency map; role-sensitive review and account-control timeline; missing-evidence map, Evidence Acquisition with custodian catalogue, lifecycle, manual dispatch record, draft PDF and **response attachment with preserved remainder**; IVOI; preservation desk; completeness; bounded fund provenance with gap modelling, FIFO/LIFO scenarios and **reversal gross-vs-net**; Evidence Adversary / CounterProof with actions and dissent; hypotheses and independent blind review; counterfactual lab; branches; chokepoints and network-adaptation simulator; intervention impact with acknowledgement gate; statement forensics and PDF metadata leads; campaign DNA and rotation; keyed-token privacy matching (off without key); prevention-rule compiler; one-click demo sessions via BFF cookie; blind challenge with **graph-only baseline comparison**; **proof-carrying investigation package**; adversary alternatives on cross-case links; single left navigation registry; benchmark v2.
+
+Implemented, verification incomplete: graph workbench interactions and motion scenes (typecheck/lint/build pass, visual checks at 1366×900 and 375×812, no automated interaction test).
+
+Partially implemented: field-level extraction disagreement (no second tabular parser); cross-statement reversal pairing.
+
+Blocked: Hindi OCR on the live 512 MiB instance; historical passive DNS (no provider); durable S3 storage on the live API (no bucket credentials).
+
+Not implemented: geospatial map (deliberately, while IP geolocation is the only candidate source); STIX/TAXII export; APK intake; Hindi UI labels.
+
+## 3. Files and modules changed (why)
+
+Backend: `models/twin.py` + migration `2222d8017e5e` (nine additive tables, demo users); `parsers/qr.py`, `services/payment_bridge.py` (bridge); `services/{twin,coverage,proof,temporal,lifecycle,roles,dependencies,bounded_flow,campaign,adversary,integrity,resilience,intervention,counterfactual,privacy_tokens,completeness,rulecompiler,contract,package,baseline}.py`; routers `intel.py`, `intel_global.py`, `benchmark.py`, `auth.py` (demo-session, short-token, logout), `synthetic.py` (challenge); `core/deps.py` (demo restrictions, expiry), `core/security.py` (scoped tokens); `synthetic/{mirage,generator,artifacts,challenge}.py` (0.4.1); `db/session.py` (WAL); `parsers/common.py`; `scripts/verify_proof.py`; `requirements.txt` (`qrcode`).
+Frontend: `lib/{api,server,nav,guide}.ts`, `app/api/session/*`, `app/api/proxy/[...path]`, `components/{Shell,ui,motion,CasePage,ListPage,icons,CrossCase}.tsx`, 12 hand-written and 50 generated feature pages, graph page workbench, `scripts/check-nav.mjs`.
+Benchmark and CI: `tests/benchmark/run_benchmark_v2.py`, results JSON, CI steps (benchmark v2 smoke, verifier help, nav check).
+Docs: this report plus GLOBAL_COMPETITIVE_LANDSCAPE, RAJASTHAN_OPERATIONAL_FIT, OPERATION_LIFECYCLE_AND_DEPENDENCY_MODEL, ROLE_SENSITIVE_REVIEW_SAFEGUARDS, PROOF_CERTIFICATE_SPEC, BOUNDED_FUND_ATTRIBUTION_SPEC, BENCHMARK_V2, FEATURE_MATRIX; README, ARCHITECTURE, DEPLOYMENT, DEMO_SCRIPT, LIMITATIONS, REMAINING_BLOCKERS, IMPLEMENTATION_STATUS updated.
+
+## 4. Database migration and rollback
+
+`2222d8017e5e_digital_twin_tables_and_demo_users` (additive; runs in the Render start command). Rollback: `alembic downgrade 7e960fbc555c` drops the nine tables and `users.is_demo` / `users.expires_at` after deleting demo users; the PostgreSQL enum value `demo_analyst` remains (enum values cannot be dropped in place). Back up before downgrading. No data migration touches uploaded bytes, hashes, locators or memberships.
+
+## 5. New APIs and permission boundaries
+
+Case-scoped (`/api/cases/{id}/…`, membership enforced by `get_case_or_404`, non-members receive 404): twin, twin/journey, twin/replay, twin/events; payment-instructions (list, register, decode-image, match, report.pdf); coverage; integrity; temporal; paths/{i}/proof.json|pdf; files/{id}/download; lifecycle; roles/{acct} (+decision supervisor/admin, control-timeline); dependencies; ivoi; preservation; requests (+status with supervisor gate for authorised/sent_manual, +response, draft.pdf); bounded-flow; intervention/{acct} (acknowledgement required); chokepoints; resilience/simulate|scenarios; lab/profiles|run|runs; branches (+compare); hypotheses (+update, review-view, reviews); adversary (+edge, action); completeness; views; role-reviews; package.zip.
+Global: campaign/compare, campaign/fingerprint/{id}, privacy/status|match|reveal (audited; disabled without key), rules list/compile/decision (approval gate), benchmark/results, benchmark/model-card, audit/mine.
+Auth: `POST /api/auth/demo-session` (origin check, per-IP limit, 240-min expiry, synthetic-only demo principal), `POST /api/auth/short-token` (upload/download scope, 10 min), `POST /api/auth/logout`. Demo users cannot see, join or create non-synthetic cases (tested). Sealed truth is served only by `challenge/reveal` after a locked submission, synthetic cases only (tested); the package builder refuses sealed-truth keys (tested).
+
+## 6. Tests and checks (actually run, 2026-11-22)
 
 | Check | Command | Result |
 |---|---|---|
-| Backend unit / integration / security / determinism / migration / cross-case / OCR / claims / cooperation / storage | `cd apps/api; python -m pytest -q` | **58 passed** |
+| Backend | `cd apps/api; python -m pytest -q` | **103 passed** (58 pre-existing + 45 new across 6 files) |
 | Backend lint | `ruff check app tests --select E,F,W --ignore E501,E731,E741` | clean |
-| Frontend | `npx tsc --noEmit`, `npx next lint`, `npx next build` | clean; 16 routes built |
-| GitHub Actions on `6f1abf0` (feature branch) | https://github.com/RAJARYANSINGH0059/RPH/actions/runs/44902132758 | **success**: backend tests + PostgreSQL migration up/down + 2-seed benchmark + inference test; frontend lint/build/typecheck; gitleaks |
-| Visual inspection (browser pane) | 1366×900: sign-in, cases, case overview, graph with selected edge + evidence panel, claims, cross-case correlation; 375×812: cases (no horizontal overflow) | screens render; one defect fixed (graph canvas first paint) |
+| Frontend | `npx tsc --noEmit`, `npx next lint`, `npx next build` | typecheck clean; lint 2 pre-existing warnings (unused index variables); build OK |
+| Navigation registry | `cd apps/web; node --experimental-strip-types scripts/check-nav.mjs` | 12 groups, 74 feature routes, 3 utility routes, 0 problems |
+| Offline verifier | `python scripts/verify_proof.py <proof.json> --files <dir>` | PASS on originals; FAIL on a modified file and on a modified manifest (tested) |
+| Browser (pane) | sign-in → overview → factory (Desert Mirage) → twin, bridge, bounded flow, counterproof, lifecycle, graph, roles, ivoi, resilience, intervention, challenge, requests; 375 px width | render with real data; no horizontal overflow |
 
-## 3. Benchmark (synthetic only; F1 is not accuracy)
+Pre-existing failures: none. Skipped: none (one test skips only if the generated case has no path starting at a statement-less account).
 
-Smoke (seeds 500–503, 384 runs) and frozen held-out (seeds 700–703, 384 runs, `fake_customer_care` as held-out typology), configuration D = full verification layer:
+## 7. Benchmark
 
-| Metric | Smoke | Held-out |
-|---|---|---|
-| Transaction edge F1 | 0.550 | 0.551 |
-| Entity resolution F1 | 0.993 | 0.992 |
-| False links asserted from shared hosting | **0** (vs 144 without safeguards) | **0** (vs 144) |
-| Counter-evidence recall | 0.871 | 0.851 |
-| Path coverage (95% CI) | 0.977 (0.956–0.995) | 0.958 (0.932–0.979) |
-| False-path rate (multi-hop) | 0.227 (0.193–0.266) | 0.220 (0.179–0.267) |
-| Amount conservation | 0.728 | 0.722 |
-| Temporal consistency | 0.879 | 0.853 |
-| Unresolved-hop rate | 1.000 (bundles contain no second-layer statements; v2 names the missing statement) | 1.000 |
-| Held-out typology `fake_customer_care` edge F1 | — | 0.539 (other families 0.524–0.577) |
+Benchmark v1 (false-link safeguards) unchanged: 0 false links with safeguards vs 144 without; details in `docs/BENCHMARK.md`.
+Benchmark v2 (`docs/BENCHMARK_V2.md`, 30 cases = 5 families × 6 seeds, generator 0.4.1): attribution coverage 1.00 (false-exact 0, width ratio 0.62), gap detected 1.00 / false observed-zero 0, balance-break recall 1.00, innocent triage flag rate 0.049, knowing participation auto-asserted 0, common-operator edges 0, proof verify / tamper 1.00 / 1.00, lab robustness 1.00, rotation recall 1.00 / benign false cluster 0. Graph-only baseline vs PS05-X on identical cases: baseline asserts 1.0 common-operator decoy pair per case, PS05-X 0; path recall 0.74 vs 0.75 (both bounded by missing statements); PS05-X does not label the unrelated counterparties it reaches, the baseline does. All synthetic; CIs and limitations in the document.
 
-Held-out numbers match the development seeds within the intervals, so no tuning leakage is apparent. Raw per-case rows: `tests/benchmark/results/benchmark_summary.json`, `heldout_summary.json`.
+## 8. Deployment
 
-## 4. Deployment (verified live)
+Status at the time of writing: committed locally on `feat/ps05-digital-twin`; push, merge to `main`, Render (`python scripts/render_deploy.py`) and Vercel (`cd apps/web; vercel deploy --prod --yes`) deploys and live verification are performed after this report and recorded in the closing message of the session, not assumed here. Live URLs remain https://ps05x-api.onrender.com and https://rph-ps05x.vercel.app. Required live env additions: none mandatory (`PROOF_SIGNING_KEY`, `CROSSCASE_TOKEN_KEY` optional; `API_BASE_URL` optional for the BFF).
 
-| Target | URL | Verified |
-|---|---|---|
-| Render API (project RPH, service `rph`, `srv-dc0noo67bikc73bbqjug`, Singapore, free) | https://ps05x-api.onrender.com | `/api/health/live` and `/api/health/ready` 200 on commit `6f1abf0`; migration `7e960fbc555c` applied; from the terminal: sign-in, multi-victim synthetic case (3.8 s), cross-case correlation of two cases (0.4 s; 17 corroborated / 4 exact / 30 derived / 1 stale), claim + link + simulated hold → reconciliation, readiness pack PDF, cooperation pack validation → supervisor endorsement → ZIP export, paths with resolution hints, gzip responses, no COMMON_OPERATOR edges |
-| Vercel web (project `rph`) | https://rph-ps05x.vercel.app and https://ps05x-web.vercel.app | 200; redesigned UI served; reports “API ready” when the API is awake |
-| Local | http://localhost:3000, http://localhost:8000 | running during this session; `scripts/run_local.ps1` restarts both |
+## 9. Unconfigured integrations and remaining dependencies
 
-Render did not auto-deploy on pushes; deploys were triggered with `python scripts/render_deploy.py`. One incident: the first live OCR request was OOM-killed on the 512 MiB instance; `OCR_ENGINE=off` was set and the service redeployed (RapidOCR remains active locally and in tests).
+No bank, police, CFCFRMS/NCRP, I4C, telecom, registrar, passive-DNS or threat-intelligence connection exists or is claimed (connectors stay `not_configured`). No S3 bucket on the live API. Proof HMAC and privacy tokens are off on the live API until keys are set. GitHub PR creation needs a token on this machine. See `docs/REMAINING_BLOCKERS.md`.
 
-## 5. Unavailable credentials / integrations
+## 10. Known limitations and next highest-value work
 
-- No GitHub token usable for the REST API from this machine, so the pull request was not opened automatically. Open it here: https://github.com/RAJARYANSINGH0059/RPH/pull/new/feat/ps05-cross-case-restitution (the branch is pushed; `main` already contains it by fast-forward).
-- No S3/R2 bucket credentials: live uploads stay on the ephemeral disk.
-- No external connector keys (RDAP/DNS/URLhaus/ThreatFox/MISP remain `not_configured`); no police/bank/NCRP/CFCFRMS/MRM access, by design.
+`docs/LIMITATIONS.md` (full list). Next: Playwright interaction smoke over the Desert Mirage pages; a second tabular parser for field-level disagreement; cross-statement reversal pairing; larger benchmark v2 sample; enabling S3 and OCR on a paid instance.
 
-## 6. Known gaps
+## 11. Claims policy
 
-See `docs/REMAINING_BLOCKERS.md` and `docs/LIMITATIONS.md`. Headlines: OCR off on the free instance; Hindi OCR only via the Docker image; edge F1 under noise ~0.43–0.49; benchmark is a smoke-sized run; cooperation-process page not re-verified; official PS05 expanded brief to be checked manually before submission.
+No claim of police adoption, bank integration, real-world accuracy, legal admissibility, recoveries, world-first status or competition outcome is made anywhere in the product or documentation. Synthetic metrics are labelled synthetic on every screen that shows them.
 
-## 7. Recommended demo sequence (8 minutes)
+## 12. Demo
 
-1. Sign in → cases registry → **One-click demo case** (multi-victim, messy).
-2. Upload: show parser warnings and, locally, the OCR preview with confidence and “needs human verification”.
-3. Transactions: raw strings, ambiguous-date badges, duplicates, reconstructed paths with the unresolved hop and the statement it asks for.
-4. Graph (Money trail focus): click a corroborated transfer, then a dashed SHARED_INFRASTRUCTURE edge → counter-evidence; show that “Supported” is refused for an analyst.
-5. Related cases → correlate with a second case: corroborated bridges with hashes/locators; *Not asserted* similar names.
-6. Victim claims: record three claims, link transactions, record the simulated hold → oversubscribed flag, no allocation; advance to export-ready; download the readiness pack.
-7. Cooperation pack: validation checklist → supervisor endorsement → ZIP with manifest hashes.
-8. Reports + benchmark slide: 0 false links with safeguards vs 144 without; coverage 0.96–0.98 with explicit unresolved hops.
-
-## 8. Usage
-
-Official plan panel at the start of this run: 5-hour window 49% used, weekly 20% used. Final figures are reported in the closing message of the session, not estimated here.
+`docs/DEMO_SCRIPT.md` section A (Operation Desert Mirage, 12 steps, ~10 minutes).

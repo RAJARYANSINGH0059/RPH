@@ -4,7 +4,7 @@ Status vocabulary: **Implemented and verified** (API + UI + permissions + persis
 
 | Feature | Status | Evidence |
 |---|---|---|
-| Money-trail graph, transactions, timeline, reports, cross-case, claims, cooperation, OCR chain, S3 adapter, connectors, ML triage | Implemented and verified (pre-existing, preserved) | 58 original tests still pass |
+| Money-trail graph, transactions, timeline, reports, cross-case, claims, cooperation, OCR chain, S3 adapter, connectors, ML triage | Implemented and verified (pre-existing, preserved) | 58 original tests still pass (103 total) |
 | Payment-instruction bridge (QR decode, upi:// parse, field-level matching, graph edge, PDF) | Implemented and verified | `test_payment_bridge.py` (7) |
 | Fraud-operation digital twin (events, layers, links, as-of replay, manual reported events) | Implemented and verified | `test_twin_coverage_proof.py` |
 | Victim journey reconstruction with consistency checks | Implemented and verified | same |
@@ -36,10 +36,16 @@ Status vocabulary: **Implemented and verified** (API + UI + permissions + persis
 | Single left navigation registry (74 feature routes + 3 utility, duplicate check in CI) | Implemented and verified | `scripts/check-nav.mjs` |
 | Graph workbench (shapes/line patterns, layers, clusters, time window, path replay, linked table/timeline, saved views, inspector links) | Implemented, verification incomplete | typecheck/build pass; desktop visual check; no automated interaction test |
 | Motion scenes (9 scenes, reduced-motion static, off-screen pause) | Implemented, verification incomplete | visual check only |
-| Benchmark v2 (next-wave metrics, CIs) | Implemented and verified | `tests/benchmark/run_benchmark_v2.py`, results JSON |
+| Benchmark v2 (next-wave metrics, CIs, graph-only baseline vs PS05-X on identical cases, sample size) | Implemented and verified | `tests/benchmark/run_benchmark_v2.py`, results JSON, `test_nextwave_gaps.py` |
+| Evidence-request responses (attach returned record, partial response keeps the unresolved remainder, append-only history) | Implemented and verified | `test_nextwave_gaps.py` |
+| Reversal / refund handling in bounded attribution (composition restored, gross vs net, never netted silently) | Implemented and verified | `test_nextwave_gaps.py` |
+| Proof-carrying investigation package (ZIP: report, proof per path, analyses, hypotheses with dissent, requests with responses, role reviews, audit, SHA-256 manifest; sealed truth refused) | Implemented and verified | `test_nextwave_gaps.py` |
+| Graph-only baseline comparison inside the blind-challenge reveal | Implemented and verified | `test_nextwave_gaps.py` |
+| Adversary alternatives and challenge state on cross-case shared-infrastructure links | Implemented and verified | `test_nextwave_gaps.py` |
 | Hindi OCR on the live free-tier API | Blocked | 512 MiB instance OOM; available in Docker image and locally |
 | Historical passive DNS provider | Blocked (no credentials) | current-only labelled honestly |
 | Durable S3 storage on the live API | Blocked (no bucket credentials) | adapter tested locally |
 | Geospatial map view | Not implemented | no source-grounded geospatial events exist in the data model; IP geolocation deliberately excluded |
 | Field-level extraction disagreement between two parsers of the same statement | Partially implemented | debit/credit conflicts and text-layer vs OCR disagreement handled; no second tabular parser exists |
+| Reversal handling across accounts (a reversal recorded in the counterparty's statement) | Partially implemented | the receiving account's own reversal debit is handled by its LP; cross-statement pairing of the same reversal is not deduplicated |
 | Standards-based STIX/TAXII export | Not implemented | roadmap |

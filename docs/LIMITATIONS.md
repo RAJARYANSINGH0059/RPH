@@ -31,3 +31,24 @@
 - **Victim claims / restitution readiness** is a reconciliation aid. It does not allocate funds, decide entitlement or communicate with banks or the Money Restoration Module. Simulated holds in synthetic cases are labelled as simulated.
 - **Cooperation pack** is a manual handoff bundle; there is no portal integration, login or submission.
 - **Latency**: API responses are gzip-compressed and the frontend avoids waterfall requests, but a Render free-plan service sleeps when idle; the first request after a pause can take 30–60 s.
+
+## Added in the digital-twin increment (2026-11-22)
+
+- **Bounded attribution** is only as tight as the supplied statements; without running balances the model falls back to unknown opening balances and intervals widen to the full transfer. Scenario (FIFO/LIFO) results are assumptions, not findings. INFEASIBLE means the records conflict, not that the model is wrong about the money.
+- **Proof manifests** prove reproducibility and file integrity, not authenticity, truth or admissibility. Without `PROOF_SIGNING_KEY` the manifest carries a hash only; anyone can regenerate it from the same inputs.
+- **Lifecycle stages** are an application of FATF's published framework to supplied evidence; stage states express what the evidence supports, not what happened. S2 (recruitment) is always a candidate for trained human review.
+- **Role review and control timeline** record propositions and claims; they do not determine knowledge, intent, coercion or liability. There is no victim/mule/trafficking score anywhere in the system.
+- **Evidence acquisition** drafts are never transmitted; `sent_manual` is a record that an officer sent it outside the system. Retention periods are *not verified* unless a verified source is attached. Custodian catalogue entries are generic, not institution-specific legal advice.
+- **Preservation deadlines** are shown only where retention is verified; otherwise the desk says so.
+- **Intervention impact and network adaptation** are what-if simulations on a copy of the case graph; they never act, recommend an action, or estimate how real actors would respond.
+- **Campaign DNA** similarity is a candidate signal with thresholds tuned on synthetic data; HIGH means “review together”, never “same operator”.
+- **Keyed-token privacy matching** leaks equality to the key holder and is not anonymisation; it is disabled unless `CROSSCASE_TOKEN_KEY` is set.
+- **Prevention rules** are evaluated on held-out synthetic cases only and require explicit approval before any status change; none is enforced anywhere.
+- **Blind challenge** scoring applies to synthetic cases only; a real case has no sealed truth.
+- **Demo sessions**: the per-IP rate limit is in-process (single worker) and resets on restart; demo principals see synthetic cases only and are removed 24 h after expiry. A browser session is one HttpOnly cookie; there are still no refresh tokens or MFA.
+- **Graph workbench and motion scenes** were verified visually at 1366×900 and 375×812; there is no automated interaction test. The Cytoscape canvas remains non-screen-reader-accessible; the linked table carries the same data.
+- **Geospatial map**: not implemented on purpose — IP geolocation would imply a person's location, which the system refuses to do.
+- **Hindi OCR** is unchanged: available in the Docker image and locally, off on the live 512 MiB instance.
+- **Reversal detection** is textual and structural (reversal/refund keyword plus the same amount and either the quoted reference or the same counterparty). A reversal narrated without a keyword is treated as an ordinary credit; a false pairing can only happen within one account's own statement and is listed for review.
+- **Graph-only baseline** numbers describe a deliberately naive traversal on synthetic cases; they are a comparison point for the benchmark, not a claim about any real tool or team.
+- **Investigation package** digests cover the generated entries only; the raw uploads are hashed in report.json and downloaded separately. The package is not a signed or legal certificate.

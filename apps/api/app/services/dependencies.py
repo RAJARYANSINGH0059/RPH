@@ -23,7 +23,7 @@ REQUEST_STATUSES = ["identified", "draft", "under_review", "authorised", "sent_m
 TRANSITIONS = {"identified": {"draft", "closed", "rejected"}, "suggested": {"draft", "closed", "rejected"}, "draft": {"under_review", "closed", "rejected"},
                "under_review": {"authorised", "draft", "rejected", "closed"}, "authorised": {"sent_manual", "closed", "rejected"},
                "sent_manual": {"externally_confirmed", "partial_response", "received", "unavailable", "expired", "closed"},
-               "externally_confirmed": {"partial_response", "received", "unavailable", "expired", "closed"}, "partial_response": {"received", "reviewed", "unavailable", "closed"},
+               "externally_confirmed": {"partial_response", "received", "unavailable", "expired", "closed"}, "partial_response": {"partial_response", "received", "reviewed", "unavailable", "closed"},
                "received": {"reviewed", "closed"}, "reviewed": {"closed"}, "rejected": {"draft", "closed"}, "unavailable": {"closed"}, "expired": {"draft", "closed"}, "closed": set()}
 VOLATILITY = {"hosting": "high (logs/content rotate quickly)", "registrar": "medium", "telecom": "medium (CDR retention varies by operator and law)", "payment_app": "medium",
               "bank": "low (statements are durable records)", "isp": "high", "platform": "high", "police": "low", "other": "unknown"}
@@ -76,6 +76,8 @@ def dependency_map(db: Session, case: Case) -> dict:
         existing = req_by_target.get((r["target_entity"], r["catalogue_key"]))
         r["status"] = existing.status if existing else "identified"
         r["request_id"] = existing.id if existing else None
+        r["responses"] = responses_of(existing) if existing else []
+        r["unresolved_remainder"] = unresolved_remainder(existing) if existing else None
         requirements.append(r)
         links.append({"from": r["question_id"], "to": r["id"], "type": "REQUIRES_EVIDENCE"})
 
@@ -131,10 +133,11 @@ def dependency_map(db: Session, case: Case) -> dict:
             add_q(f"Q-hyp-{h.id[:8]}", f"Hypothesis '{h.title}' has no supporting evidence on file", list((h.subject_refs or {}).get("account_refs") or []), [h.statement] + list(h.alternatives or []), {"hypothesis": h.id}, "medium")
     available = [r["id"] for r in requirements if r["status"] in {"received", "reviewed", "partial_response"}]
     missing = [r["id"] for r in requirements if r["id"] not in available]
+    partial = [{"id": r["id"], "remaining": r["unresolved_remainder"]} for r in requirements if r["status"] == "partial_response"]
     return result(case, "missing_evidence_dependency_map", IVOI_VERSION, findings=[finding("open_questions", f"{len(questions)} open question(s), {len(missing)} missing record(s)", evidence_class="derived")],
                   uncertainties=[q["question"] for q in questions][:20], limitations=["A requested record could establish the listed points; it is not guaranteed to resolve a hypothesis.",
                   "Nothing is sent anywhere; requests are drafts until an officer records a manual dispatch.", "Legal/procedural fields are marked for authorised validation; no legal power or deadline is asserted."],
-                  questions=questions, requirements=requirements, available=available, missing=missing, links=links, what_remains_unproven=[q["question"] for q in questions], catalogue=CATALOGUE)
+                  questions=questions, requirements=requirements, available=available, missing=missing, partial=partial, links=links, what_remains_unproven=[q["question"] for q in questions], catalogue=CATALOGUE)
 
 
 def ivoi_rank(db: Session, case: Case) -> dict:
@@ -198,14 +201,36 @@ def preservation_desk(db: Session, case: Case) -> dict:
                   clock=clock, queue=queue, statuses=REQUEST_STATUSES, transitions={k: sorted(v) for k, v in TRANSITIONS.items()})
 
 
-def advance_request(db: Session, case: Case, user: User, rq: EvidenceRequest, new_status: str, note: str, *, actual_dispatch_details: str | None = None) -> EvidenceRequest:
+def advance_request(db: Session, case: Case, user: User, rq: EvidenceRequest, new_status: str, note: str, *, actual_dispatch_details: str | None = None, response: dict | None = None) -> EvidenceRequest:
     if new_status not in TRANSITIONS.get(rq.status, set()):
         raise ValueError(f"cannot move from {rq.status} to {new_status}")
     if new_status == "sent_manual" and not actual_dispatch_details:
         raise ValueError("recording a manual dispatch requires the actual dispatch details (channel, date, reference) entered by the officer")
     if new_status == "authorised" and not (rq.legal_authority and rq.requesting_officer):
         raise ValueError("authorisation requires legal_authority and requesting_officer fields validated by an authorised investigator")
-    rq.status_history = (rq.status_history or []) + [{"from": rq.status, "to": new_status, "by": user.id, "at": datetime.now(timezone.utc).isoformat(), "note": note, "dispatch_details": actual_dispatch_details}]
+    rq.status_history = (rq.status_history or []) + [{"from": rq.status, "to": new_status, "by": user.id, "at": datetime.now(timezone.utc).isoformat(), "note": note, "dispatch_details": actual_dispatch_details, "response": response}]
     rq.status = new_status
     audit.record(db, "evidence_request.status", actor_id=user.id, case_id=case.id, target_type="evidence_request", target_id=rq.id, detail={"to": new_status, "note": note[:200]})
     return rq
+
+
+def responses_of(r: EvidenceRequest) -> list[dict]:
+    return [h["response"] for h in (r.status_history or []) if h.get("response")]
+
+
+def unresolved_remainder(r: EvidenceRequest) -> str | None:
+    """What the latest response left open; None once a full response is recorded."""
+    rs = responses_of(r)
+    if not rs:
+        return None
+    return rs[-1].get("remaining") or None
+
+
+def request_out(r: EvidenceRequest) -> dict:
+    return {"id": r.id, "title": r.title, "organisation_type": r.organisation_type, "catalogue_key": (r.ranking or {}).get("catalogue_key"), "target_record": r.target_record, "target_entity": r.target_entity,
+            "window_from": r.window_from.isoformat() if r.window_from else None, "window_to": r.window_to.isoformat() if r.window_to else None, "required_fields": r.required_fields, "rationale": r.rationale,
+            "could_resolve": r.could_resolve, "would_not_establish": r.would_not_establish, "ranking": r.ranking, "retention": r.retention or {"verified": False, "display": "RETENTION NOT VERIFIED"},
+            "legal_authority": r.legal_authority, "requesting_officer": r.requesting_officer, "status": r.status, "status_history": r.status_history, "is_simulated": r.is_simulated,
+            "created_at": r.created_at.isoformat() if r.created_at else None, "fields_requiring_authorised_completion": [f for f in ("legal_authority", "requesting_officer") if not getattr(r, f)] + ["recipient", "final wording"],
+            "responses": responses_of(r), "unresolved_remainder": unresolved_remainder(r),
+            "transmission": "never automatic; status sent_manual records a dispatch made by an officer outside this system"}

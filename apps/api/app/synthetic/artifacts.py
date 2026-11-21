@@ -83,7 +83,10 @@ def statement_rows(gen: Generator, truth: Truth, acct: Account, header_set: int)
             truth.chaos.append({"kind": "duplicate_row", "ref": t.ref, "account": acct.acct_no})
     if header_set != 3 and chaos["balance"] and rows and gen.rng.random() < 0.5:
         # perturb one balance to create a reconciliation mismatch
-        i = gen.rng.randrange(len(rows))
+        # never perturb a duplicated row: the break would be attributed to the duplicate and the planted mismatch would be unobservable
+        dup_refs = {c["ref"] for c in truth.chaos if c["kind"] == "duplicate_row" and c["account"] == acct.acct_no}
+        candidates = [j for j, r in enumerate(rows) if r[2] not in dup_refs] or list(range(len(rows)))
+        i = gen.rng.choice(candidates)
         try:
             rows[i][5] = f"{float(rows[i][5]) + 10.00:.2f}"
             truth.chaos.append({"kind": "balance_mismatch", "account": acct.acct_no, "row": i + 2})

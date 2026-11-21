@@ -13,6 +13,7 @@ export default function Page() {
 function Body({ id }: { id: string }) {
   const { data, error, reload } = useApi<any>(`/cases/${id}/paths`);
   const items = [
+    ["Proof-carrying investigation package (ZIP)", "Report, proof manifest per path, bounded flow, coverage, lifecycle, dependencies, adversary, hypotheses with dissent, requests with responses, role reviews, audit history, SHA-256 manifest. No sealed truth, no raw uploads.", () => saveAs(`/cases/${id}/package.zip`, `investigation_package_${id.slice(0, 8)}.zip`)],
     ["Full report (JSON)", "Observed facts, derived analysis, hypotheses, counter-evidence, limitations", () => saveAs(`/cases/${id}/report.json`, `report_${id.slice(0, 8)}.json`)],
     ["Report (PDF)", "Deterministic, source-cited PDF", () => saveAs(`/cases/${id}/report.pdf`, `report_${id.slice(0, 8)}.pdf`)],
     ["Transactions (CSV)", "Every parsed row with raw text and warnings", () => saveAs(`/cases/${id}/report/transactions.csv`, `transactions_${id.slice(0, 8)}.csv`)],

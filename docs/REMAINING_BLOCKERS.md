@@ -1,4 +1,4 @@
-# Remaining blockers and deferred work (gap-closure run, 2026-11-21)
+# Remaining blockers and deferred work (updated 2026-11-22)
 
 | Item | Status | What is needed |
 |---|---|---|
@@ -12,3 +12,15 @@
 | Official PS05 expanded brief / sample data | Not re-checked in a browser in this run. | Manual check before the action-plan submission. |
 | Cooperation request process | Pack fields follow the publicly described form; the `/old/` portal page was not re-verified as current. | Verify the current official process; the pack remains a manual handoff. |
 | Deployment protection on Vercel preview URLs | Deployment-specific URLs are SSO-protected; the production alias is public. | None (expected behaviour). |
+
+## Digital-twin increment (2026-11-22)
+
+| Item | Status | What is needed |
+|---|---|---|
+| Proof manifest HMAC on the live API | Hash-only on Render (no `PROOF_SIGNING_KEY` set) | Set the key in Render env; manifests then carry `hmac_sha256` and the verifier accepts `--key`. |
+| Keyed-token privacy matching on the live API | Disabled (no `CROSSCASE_TOKEN_KEY`) | Set a server key; the feature is intentionally off without one. |
+| Automated UI interaction tests (graph workbench, walkthrough, motion) | Not written; typecheck/lint/build and manual browser checks only | Playwright smoke over the Desert Mirage pages. |
+| Second tabular parser for field-level extraction disagreement | Not implemented | A second independent CSV/XLSX mapping pass to compare against the first. |
+| Benchmark v2 size | 5 families × 6 seeds (30 cases) | `--seeds 25` run when runtime allows; results JSON is committed for the 6-seed run. |
+| Demo rate limiting across workers | In-process limiter | Shared store (Redis/Postgres) if the API ever runs multi-worker. |
+| STIX/TAXII export, geospatial view, APK intake, Hindi UI labels | Not implemented | Separate increments; the geospatial view is deliberately excluded while the only candidate source is IP geolocation. |

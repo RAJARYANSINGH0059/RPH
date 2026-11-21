@@ -11,7 +11,7 @@ import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-GENERATOR_VERSION = "0.4.0"
+GENERATOR_VERSION = "0.4.1"
 SCENARIO_VERSION = "1"
 
 SCENARIOS = ["phishing_to_mule", "fake_customer_care", "fake_loan_job", "investment_scam", "qr_marketplace", "multi_victim_network",

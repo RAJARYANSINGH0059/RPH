@@ -44,6 +44,8 @@ from app.models import PaymentInstruction, Relationship, Role, SourceFile, Trans
 from app.services import bounded_flow, campaign, counterfactual, coverage, integrity, payment_bridge, proof, roles  # noqa: E402
 from app.services.storage import get_storage  # noqa: E402
 from app.synthetic import sealed_store  # noqa: E402
+from app.services import baseline
+from app.synthetic import challenge
 from app.synthetic.generator import GENERATOR_VERSION  # noqa: E402
 from app.synthetic.service import generate_case  # noqa: E402
 from verify_proof import verify  # noqa: E402
@@ -166,6 +168,15 @@ def score_case(db, case, truth: dict, user) -> dict:
         target = fdir / m["source_files"][0]["name"]
         target.write_bytes(target.read_bytes() + b"\n#tamper")
         row["proof_tamper_detected"] = 1.0 if verify(m, fdir, None)["verdict"] == "FAIL" else 0.0
+    # ---- graph-only baseline vs PS05-X triage on the same case (sealed truth passed in by this scorer only)
+    cmpb = challenge.compare_with_truth(db, case, truth)
+    for src, pref in ((cmpb["graph_only_baseline"], "baseline"), (cmpb["ps05x"], "ps05x"), (cmpb["ps05x_paths"], "ps05x_path")):
+        if src.get("mule_recall") is not None:
+            row[f"{pref}_mule_recall"] = src["mule_recall"]
+        if src.get("mule_precision") is not None:
+            row[f"{pref}_mule_precision"] = src["mule_precision"]
+        row[f"{pref}_innocent_flagged"] = src["innocent_or_victim_accounts_flagged"]
+        row[f"{pref}_common_operator_pairs"] = src["common_operator_pairs_asserted"]
     row["runtime_s"] = round(time.time() - t0, 2)
     return row
 
@@ -212,7 +223,8 @@ def main():
     camp = {"rotation_recall": ci([1.0 if r["status"].startswith("CANDIDATE") else 0.0 for r in rot]), "rotation_candidate_rate": ci([1.0 if r["rotation_candidate"] else 0.0 for r in rot]),
             "benign_false_cluster_rate": ci([1.0 if r["status"].startswith("CANDIDATE_PATTERN_SIMILARITY_HIGH") else 0.0 for r in ben]), "benign_medium_rate": ci([1.0 if "MEDIUM" in r["status"] else 0.0 for r in ben])}
     out = {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "generator_version": GENERATOR_VERSION, "seeds": list(range(a.seed_start, a.seed_start + a.seeds)), "scenarios": SCENARIOS,
-           "cases": len(rows), "errors": [r for r in rows if "error" in r], "metrics": metrics, "campaign": camp, "rows": rows, "campaign_rows": campaign_rows, "wall_seconds": round(time.time() - t_all, 1),
+           "cases": len(rows), "sample_size": {"cases": len(rows), "seeds": a.seeds, "scenario_families": len(SCENARIOS), "cases_per_family": a.seeds, "note": "small deterministic sample; metrics carry bootstrap 95% CIs and min/max"},
+           "baseline_definition": baseline.DEFINITION, "errors": [r for r in rows if "error" in r], "metrics": metrics, "campaign": camp, "rows": rows, "campaign_rows": campaign_rows, "wall_seconds": round(time.time() - t_all, 1),
            "note": "Synthetic benchmark scored against sealed truth after analysis; F1/rates are not real-world accuracy. Coverage = sealed allocation inside [min,max]; width ratio = interval / transfer."}
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(out, indent=1, default=str), encoding="utf-8")

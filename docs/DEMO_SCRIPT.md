@@ -1,4 +1,23 @@
-# Demo script (5–7 minutes)
+# Demo script
+
+## A. Operation Desert Mirage (12 steps, ~10 minutes) — current recommended demo
+
+All data is synthetic; banners say so on every screen. Nothing in this sequence contacts a bank, portal or provider, and nothing is frozen or notified.
+
+1. **Landing → SIGN IN** (one click). An isolated `demo_analyst` workspace is created with a 4-hour expiry; the badge says *SYNTHETIC DEMO*. Open the **Overview** and the 15-step **Guided walkthrough** card.
+2. **Synthetic Case Factory** → *Operation Desert Mirage*, seed 1001, generate. Three complaints (Jaipur, Jodhpur, Udaipur), a QR PNG and a `upi://` link, statements in different layouts (one without a balance column, one with a missing period), an OCR-corrupted screenshot, a job advert, a rotated domain with current-only DNS, a simulated hold notice.
+3. **Case workspace**: evidence health, coverage summary (PARTIAL_COVERAGE for the gapped statement, NOT_SUPPLIED for the second-layer account), “what to ask for next”.
+4. **Fraud Operation Twin**: layers on one time axis; hover REPORTED_BEFORE / INSTRUCTS_PAYMENT_TO links; switch to **Victim Journey** for one complaint and show the consistency checks; **Investigation Replay** compares the case before and after the second statement arrived.
+5. **Payment Instruction Bridge**: the QR decodes to a VPA + amount; the match is EXACT_IDENTIFIER_AMOUNT to a statement row with its locator; the OCR-corrupted VPA stays CANDIDATE_PARTIAL_MATCH; the message-export link with no currency warns `currency_missing_not_assumed`.
+6. **Multi-Hop Fund Path → Proof certificate**: download `proof.json`; in a terminal run `python scripts/verify_proof.py proof.json --files <downloaded originals>` → PASS; edit one cell in a CSV → FAIL with the hop and file named.
+7. **Bounded Fund Provenance**: min/max victim-origin per hop; the commingled salary credit widens the band; beyond the account without a statement the status is UNDETERMINED with the statement named; toggle the FIFO scenario and note it is labelled an assumption.
+8. **Operation Lifecycle & Dependencies** (FATF attribution shown): S2 recruitment is CANDIDATE from the job advert; S5 collection corroborated; the shared CDN provider is a dependency object, not a criminal; leverage label only on the two-victim collection account, with its reason.
+9. **Account Involvement vs Human Attribution**: P1 supported from records, P3–P8 unassessed; try to mark P6 supported without evidence → refused; add an alleged role claim and show the **control timeline** with holder ≠ controller and UNKNOWN initiator lanes.
+10. **CounterProof / Evidence Adversary**: the SHARED_INFRASTRUCTURE edge is CANDIDATE with alternatives; record a dissent on a hypothesis as the independent reviewer; **Counterfactual Lab** runs *missing statement* (result changes) and *stale DNS* (result stable).
+11. **IVOI & Evidence Acquisition**: the next-best record is the second-layer statement; draft the request (custodian, scope, identifiers, legal fields flagged *requires validation*); advance identified → draft → under review; the draft PDF says *DRAFT — not transmitted*; the **Preservation desk** shows deadlines only where retention is verified.
+12. **Chokepoints → Network Adaptation → Intervention Impact** (acknowledge the hypothetical notice; see unrelated activity on the account), then **Blind Challenge**: submit a hypothesis, the submission locks, and only then does the reveal score it. Close on `docs/BENCHMARK_V2.md`: perfect synthetic scores show internal consistency, not field accuracy.
+
+## B. Original 5–7 minute script (still valid)
 
 Banners on every screen: **SYNTHETIC DATA** · **NO LIVE POLICE/BANK CONNECTION** · *Investigative aid; human verification required*.
 

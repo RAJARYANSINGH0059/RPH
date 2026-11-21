@@ -15,7 +15,14 @@ export default function RequestsPage() {
 
 function Body({ id }: { id: string }) {
   const { data, error, reload } = useApi<any>(`/cases/${id}/requests`);
+  const files = useApi<any[]>(`/cases/${id}/files`);
   const [sel, setSel] = useState<any>(null);
+  const [resp, setResp] = useState({ source_file_id: "", covers: "", remaining: "", note: "" });
+  async function attachResponse(e: FormEvent) {
+    e.preventDefault(); if (!sel) return; setMsg(null);
+    try { const r = await api(`/cases/${id}/requests/${sel.id}/response`, { method: "POST", body: JSON.stringify({ source_file_id: resp.source_file_id, covers: resp.covers.split(/[;,]+/).map((x) => x.trim()).filter(Boolean), remaining: resp.remaining || null, note: resp.note }) }); setSel(r); setMsg(r.unresolved_remainder ? "Partial response recorded; the remainder stays open." : "Response recorded; request is received."); reload(); }
+    catch (err: any) { setMsg(err.message); }
+  }
   const [msg, setMsg] = useState<string | null>(null);
   const [status, setStatus] = useState({ status: "under_review", note: "", actual_dispatch_details: "", legal_authority: "", requesting_officer: "" });
   const [form, setForm] = useState({ title: "", catalogue_key: "account_statement", target_entity: "", organisation_type: "bank", rationale: "", window_from: "", window_to: "" });
@@ -65,6 +72,26 @@ function Body({ id }: { id: string }) {
                     <input className="input" placeholder="Note" value={status.note} onChange={(e) => setStatus({ ...status, note: e.target.value })} />
                     <button className="btn-secondary" disabled={!allowed.length || (["authorised", "sent_manual"].includes(status.status) && !reviewer)} title={["authorised", "sent_manual"].includes(status.status) && !reviewer ? "Requires supervisor/admin" : undefined}>Record</button>
                   </form>
+                  {["sent_manual", "externally_confirmed", "partial_response"].includes(sel.status) && (
+                    <form onSubmit={attachResponse} className="mt-4 space-y-2 border-t border-line pt-3 text-sm">
+                      <div className="label">Attach a received record</div>
+                      <p className="text-xs muted">Upload the returned record to this case first (Upload Evidence), then link it here. A partial response keeps what is still outstanding visible; nothing is transmitted.</p>
+                      <select className="input" value={resp.source_file_id} onChange={(e) => setResp({ ...resp, source_file_id: e.target.value })} aria-label="Returned record (case file)" required>
+                        <option value="">Select the returned record…</option>
+                        {(files.data || []).map((f: any) => <option key={f.id} value={f.id}>{f.original_name} · {f.sha256.slice(0, 12)}…</option>)}
+                      </select>
+                      <input className="input" placeholder="What this response covers (semicolon separated)" value={resp.covers} onChange={(e) => setResp({ ...resp, covers: e.target.value })} />
+                      <input className="input" placeholder="What remains outstanding (leave empty if the response is complete)" value={resp.remaining} onChange={(e) => setResp({ ...resp, remaining: e.target.value })} />
+                      <input className="input" placeholder="Note" value={resp.note} onChange={(e) => setResp({ ...resp, note: e.target.value })} />
+                      <button className="btn-secondary" disabled={!resp.source_file_id}>{resp.remaining ? "Record partial response" : "Record full response"}</button>
+                    </form>
+                  )}
+                  {(sel.responses || []).length > 0 && (
+                    <div className="mt-3"><div className="label">Responses received</div>
+                      <ul className="text-xs">{sel.responses.map((r: any, i: number) => <li key={i} className="inset mt-1 p-2"><span className="font-medium">{r.name}</span> <span className="mono muted">{r.sha256?.slice(0, 16)}…</span><div>Covers: {(r.covers || []).join("; ") || "—"}</div><div className={r.remaining ? "warn" : "muted"}>{r.remaining ? `Still outstanding: ${r.remaining}` : "Complete response"}</div></li>)}</ul>
+                      {sel.unresolved_remainder && <p className="warn mt-1 text-xs">Unresolved remainder: {sel.unresolved_remainder}</p>}
+                    </div>
+                  )}
                   <div className="mt-3"><div className="label">History</div><ul className="text-xs">{(sel.status_history || []).map((h: any, i: number) => <li key={i}>{h.from} → <span className="font-medium">{h.to}</span> · <When v={h.at} />{h.note ? ` · ${h.note}` : ""}{h.dispatch_details ? ` · dispatch: ${h.dispatch_details}` : ""}</li>)}</ul></div>
                 </Section>
               ) : <div className="card text-sm muted">Open a request to review its scope, download the draft or move its status.</div>}

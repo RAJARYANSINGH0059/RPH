@@ -18,6 +18,7 @@ from app.models import (AnalysisBranch, AnalysisRun, Case, EvidenceRequest, Hypo
 from app.reports.builder import simple_table_pdf
 from app.services import (adversary, audit, bounded_flow, completeness, counterfactual, coverage, dependencies, integrity, intervention, lifecycle, payment_bridge, proof,
                           resilience, roles, temporal, twin)
+from app.services import package as package_service
 from app.services.storage import get_storage
 
 router = APIRouter(prefix="/cases/{case_id}", tags=["intel"])
@@ -345,12 +346,7 @@ class RequestStatusIn(BaseModel):
 
 
 def _req_out(r: EvidenceRequest) -> dict:
-    return {"id": r.id, "title": r.title, "organisation_type": r.organisation_type, "catalogue_key": (r.ranking or {}).get("catalogue_key"), "target_record": r.target_record, "target_entity": r.target_entity,
-            "window_from": r.window_from.isoformat() if r.window_from else None, "window_to": r.window_to.isoformat() if r.window_to else None, "required_fields": r.required_fields, "rationale": r.rationale,
-            "could_resolve": r.could_resolve, "would_not_establish": r.would_not_establish, "ranking": r.ranking, "retention": r.retention or {"verified": False, "display": "RETENTION NOT VERIFIED"},
-            "legal_authority": r.legal_authority, "requesting_officer": r.requesting_officer, "status": r.status, "status_history": r.status_history, "is_simulated": r.is_simulated,
-            "created_at": r.created_at.isoformat() if r.created_at else None, "fields_requiring_authorised_completion": [f for f in ("legal_authority", "requesting_officer") if not getattr(r, f)] + ["recipient", "final wording"],
-            "transmission": "never automatic; status sent_manual records a dispatch made by an officer outside this system"}
+    return dependencies.request_out(r)
 
 
 @router.get("/requests")
@@ -394,6 +390,34 @@ def request_status(request_id: str, body: RequestStatusIn, case: Case = Depends(
         dependencies.advance_request(db, case, user, rq, body.status, body.note, actual_dispatch_details=body.actual_dispatch_details)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    db.commit()
+    return _req_out(rq)
+
+
+class RequestResponseIn(BaseModel):
+    source_file_id: str = Field(min_length=1)
+    covers: list[str] = Field(default_factory=list, max_length=40)
+    remaining: str | None = Field(default=None, max_length=1000)
+    note: str = Field(default="", max_length=1000)
+
+
+@router.post("/requests/{request_id}/response")
+def request_response(request_id: str, body: RequestResponseIn, case: Case = Depends(get_case_or_404), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Attach a received record (an already-uploaded case file) to a request. A partial response keeps the unresolved remainder
+    visible; the request history is append-only and nothing is transmitted."""
+    rq = db.get(EvidenceRequest, request_id)
+    if rq is None or rq.case_id != case.id:
+        raise HTTPException(404, "request not found")
+    sf = db.get(SourceFile, body.source_file_id)
+    if sf is None or sf.case_id != case.id:
+        raise HTTPException(404, "source file not found in this case; upload the returned record to this case first")
+    new_status = "partial_response" if body.remaining else "received"
+    response = {"source_file_id": sf.id, "name": sf.original_name, "sha256": sf.sha256, "covers": body.covers, "remaining": body.remaining, "attached_at": datetime.now(timezone.utc).isoformat(), "by": user.id}
+    try:
+        dependencies.advance_request(db, case, user, rq, new_status, body.note or ("partial response attached" if body.remaining else "response attached"), response=response)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    audit.record(db, "evidence_request.response_attached", actor_id=user.id, case_id=case.id, target_type="evidence_request", target_id=rq.id, detail={"source_file_id": sf.id, "partial": bool(body.remaining)})
     db.commit()
     return _req_out(rq)
 
@@ -729,3 +753,15 @@ def save_view(body: SavedViewIn, case: Case = Depends(get_case_or_404), user: Us
 def list_role_reviews(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
     rows = db.execute(select(RoleReview).where(RoleReview.case_id == case.id).order_by(RoleReview.updated_at.desc())).scalars().all()
     return [{"id": r.id, "account_ref": r.account_ref, "status": r.status, "reviewer_id": r.reviewer_id, "updated_at": r.updated_at.isoformat()} for r in rows]
+
+
+# ------------------------------------------------------------------ proof-carrying investigation package
+
+@router.get("/package.zip")
+def investigation_package(case: Case = Depends(get_case_or_404), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Report, proof manifests, analyses with assumptions, hypotheses with dissent, requests with responses, role reviews, audit
+    history and a SHA-256 manifest. Never includes sealed truth, credentials or raw uploads."""
+    data, manifest = package_service.build(db, case, user)
+    audit.record(db, "package.exported", actor_id=user.id, case_id=case.id, target_type="case", target_id=case.id, detail={"entries": len(manifest["entries"]), "package_sha256": manifest["package_sha256"]})
+    db.commit()
+    return Response(data, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="investigation_package_{case.id[:8]}.zip"', "X-Package-SHA256": manifest["package_sha256"]})

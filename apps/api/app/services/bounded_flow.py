@@ -10,6 +10,8 @@ FIFO / LIFO are optional labelled scenarios, never defaults. Accounts without st
 """
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,22 @@ from app.services.contract import finding, result
 
 FLOW_VERSION = "1.0.0"
 STATUSES = ["EXACT_UNDER_CONSTRAINTS", "BOUNDED_UNDER_CONSTRAINTS", "UNDETERMINED", "INFEASIBLE"]
+
+
+REV_RE = re.compile(r"\b(REV|REVERSAL|REVERSED|REFUND|REFUNDED|RETURN|RETURNED|CHARGEBACK)\b", re.I)
+
+
+def _reversal_of(t: Transaction, prior_debits: list, cp: str | None, alias: dict):
+    """A credit that reverses an earlier debit of this account: same amount and either the debit's reference quoted in the credit's
+    narration/reference or the same counterparty, with a reversal/refund keyword present. Detected only from the rows themselves."""
+    text = f"{t.narration_raw or ''} {t.external_reference or ''}"
+    if not REV_RE.search(text):
+        return None
+    for d, vj in reversed(prior_debits):
+        d_cp = alias.get(d.counterparty_ref, d.counterparty_ref) if d.counterparty_ref else None
+        if d.amount_minor == t.amount_minor and ((d.external_reference and d.external_reference in text) or (cp and d_cp == cp)):
+            return d, vj
+    return None
 
 
 def _rows_for(db: Session, case: Case, canon: str, alias: dict) -> list[Transaction]:
@@ -68,7 +86,7 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
     A_ub, b_ub, A_eq, b_eq = [], [], [], []
     bounds_hi: dict[str, float] = {}
     hop_vars: list[tuple[str, str, str, int]] = []  # (account, tx_id, var, amount)
-    inconsistencies, assumptions, missing = [], [], []
+    inconsistencies, assumptions, missing, reversals = [], [], [], []
     # victim-origin inflow into account k comes from the hop var of the previous account (or the origin amount for the first)
     v_in_expr: dict[str, list[tuple[float, str | None]]] = {}  # account -> list of (coef, var or None for constant)
     v_in_expr[accounts[0]] = [(float(origin_amount), None)]
@@ -114,6 +132,7 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
         V_terms: list[tuple[float, str | None]] = []
         O_terms: list[tuple[float, str | None]] = list(open_terms)
         v_credited = False
+        prior_debits: list = []  # (row, v-variable index) for reversal matching
         onward_targets = {h["dst"] for h in p["hops"] if h["src"] == acct}
         for t in rows:
             cp = alias.get(t.counterparty_ref, t.counterparty_ref) if t.counterparty_ref else None
@@ -130,7 +149,16 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
                     b_ub.append(_const(O_terms) - float(-gap))
                     V_terms = V_terms + [(-1.0, gv)]
                     O_terms = O_terms + [(float(gap), None), (1.0, gv)]
-            if t.direction == "credit":
+            rev = _reversal_of(t, prior_debits, cp, alias) if t.direction == "credit" else None
+            if rev is not None:
+                d, vj_rev = rev
+                prior_debits.remove(rev)
+                # the reversed debit comes back with the composition it left with: V regains v_j, O regains a_j - v_j
+                V_terms = V_terms + [(1.0, vj_rev)]
+                O_terms = O_terms + [(float(t.amount_minor), None), (-1.0, vj_rev)]
+                reversals.append({"account": acct, "debit_transaction_id": d.id, "credit_transaction_id": t.id, "amount_minor": t.amount_minor, "debit_reference": d.external_reference,
+                                  "credit_reference": t.external_reference, "handling": "restores the reversed debit's victim-origin/other composition; not netted silently (see gross_net)"})
+            elif t.direction == "credit":
                 if k == 0 and (t.id in origin_ids or _matches_hop(p, p["accounts"][0], acct, t)):
                     V_terms = V_terms + [(float(t.amount_minor), None)]  # origin credit arrives here
                     v_credited = True
@@ -150,6 +178,7 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
                 b_ub.append(_const(O_terms) - float(t.amount_minor))
                 V_terms = V_terms + [(-1.0, vj)]
                 O_terms = O_terms + [(-float(t.amount_minor), None), (1.0, vj)]
+                prior_debits.append((t, vj))
                 if cp in onward_targets:
                     hop_vars.append((acct, t.id, f"v:{acct}:{t.id}", t.amount_minor))
             # running balance equality where present: V + O == balance_after
@@ -203,6 +232,11 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
     scenarios = {}
     if scenario in {"fifo", "lifo"}:
         scenarios[scenario] = _scenario(db, case, alias, p, accounts, origin_ids, all_tx, scenario)
+    hop_ids = {tid for (_, tid, _, _) in hop_vars}
+    gross = sum(r["observed_transfer_minor"] for r in results)
+    reversed_minor = sum(rv["amount_minor"] for rv in reversals if rv["debit_transaction_id"] in hop_ids)
+    gross_net = {"gross_onward_minor": gross, "reversed_onward_minor": reversed_minor, "net_onward_minor": gross - reversed_minor, "reversals_detected": len(reversals),
+                 "definitions": "gross = sum of observed onward transfers on this path; reversed = onward transfers later returned by a matched reversal/refund credit; net = gross - reversed. Reversals elsewhere in the account are listed but not netted here."}
     invariant = [f"Victim-origin funds reaching {r['to_account']} are at least ₹{r['minimum_attributable_minor'] / 100:,.2f} and at most ₹{r['maximum_attributable_minor'] / 100:,.2f} under the recorded constraints"
                  for r in results if r.get("minimum_attributable_minor") is not None]
     possible = [f"Any allocation between the bounds for {r['to_account']} is consistent with the evidence; the witnesses shown are illustrative, not a trace of specific rupees" for r in results if r.get("exact") is False]
@@ -211,11 +245,12 @@ def analyse(db: Session, case: Case, *, origin_transaction_ids: list[str] | None
                 for r in results if r.get("minimum_attributable_minor") is not None]
     return result(case, "bounded_fund_provenance", FLOW_VERSION, findings=findings, status=status, attribution_status=status, input_evidence_ids=[all_tx[t].evidence_item_id for t in origin_ids if t in all_tx],
                   limitations=["Money is fungible after commingling: bounds describe what the records permit, not which rupees moved.", "FIFO/LIFO results are assumption scenarios, labelled as such, never facts.",
-                               "Accounts without their own statement end the computable chain (UNDETERMINED beyond them)."],
+                               "Accounts without their own statement end the computable chain (UNDETERMINED beyond them).",
+                               "Duplicate rows flagged by the parser are counted once; a matched reversal/refund credit restores the reversed debit's composition and is reported as gross vs net, never netted silently."],
                   warnings=[f"solver: {solver_status}"] if solver_status != "optimal" else [], method="time_expanded_two_commodity_lp", solver="scipy.optimize.linprog(highs)",
                   origin={"transaction_ids": sorted(origin_ids), "amount_minor": origin_amount, "victim_account": p["accounts"][0]}, path={"index": paths.index(p), "accounts": p["accounts"], "status": p["status"]},
                   hops=results, assumptions=assumptions, inconsistencies=inconsistencies, missing_evidence=missing, undetermined_from=undetermined_from, invariant_facts=invariant,
-                  possible_not_invariant=possible, scenarios=scenarios, variables=len(var_names), constraints={"inequalities": len(A_ub), "equalities": len(A_eq)}, statuses=STATUSES)
+                  possible_not_invariant=possible, scenarios=scenarios, reversals=reversals, gross_net=gross_net, variables=len(var_names), constraints={"inequalities": len(A_ub), "equalities": len(A_eq)}, statuses=STATUSES)
 
 
 def _matches_hop(p: dict, src: str, dst: str, t: Transaction) -> bool:

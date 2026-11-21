@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import user_can_access_case
+from app.services.adversary import ALTERNATIVES as _ALT
 from app.models import (Case, CaseMembership, Entity, EvidenceItem, Relationship, RelationshipEvidence, Role, SourceFile,
                         Transaction, User)
 
@@ -152,7 +153,9 @@ def correlate(db: Session, user: User, case_ids: list[str]) -> dict | None:
         infra.append({"kind": "shared_infrastructure", "ip": ip, "cases": sorted(per_case), "domains": doms, "same_domain_in_both": same_domain,
                       "match_class": "stale" if stale else ("exact" if same_domain else "candidate"),
                       "counter_evidence": [] if same_domain else ["Different domains on one IP: unrelated sites commonly share multi-tenant hosting/CDN addresses. No identifier bridges the cases through this IP."],
-                      "limitations": ["shared_ip_is_not_proof_of_common_control", "dns_mapping_valid_only_at_observation_time"] + (["observation_stale_in_at_least_one_case"] if stale else [])})
+                      "limitations": ["shared_ip_is_not_proof_of_common_control", "dns_mapping_valid_only_at_observation_time"] + (["observation_stale_in_at_least_one_case"] if stale else []),
+                      "challenge_state": "stale" if stale else ("corroborated" if same_domain else "candidate"),
+                      "alternatives": [{"hypothesis": a, "why_relevant": b, "discriminating_evidence": c} for a, b, c in _ALT["SHARED_INFRASTRUCTURE"]]})
 
     # ---- 4. similar names across cases: NEVER a link; reported as rejected
     named = [(e, ((e.attributes or {}).get("name_raw") or e.label)) for e in ents if e.entity_type in {"account", "vpa"} and ((e.attributes or {}).get("name_raw") or e.label != e.key)]
