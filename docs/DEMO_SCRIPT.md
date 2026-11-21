@@ -16,5 +16,9 @@ Banners on every screen: **SYNTHETIC DATA** · **NO LIVE POLICE/BANK CONNECTION*
 6. **Timeline.** Filter to dns + transaction; show uncertain timestamps marked.
 7. **Reports.** Download the PDF: sources with hashes, parsing warnings, transaction trail, infrastructure observations with times, relationship table with locators, counter-evidence, unresolved gaps, disclaimer.
 8. **Data Sources.** All connectors *not configured* or *mock*; explain that *live* appears only after an authenticated request succeeds.
-9. **Reproducibility.** Generate seed 42 again → identical file hashes. Change the seed → a new case.
-10. **Benchmark slide** (docs/BENCHMARK.md): full layer = 0 false links across all cases vs. 144 without safeguards; counter-evidence recall 0.87 vs 0.63.
+9. **Related cases.** Open *Related cases* in the case tools. Generate a second case that received the same mule statement (or upload it), correlate the two: the account and reference bridges are corroborated with file hashes and row locators; a decoy case with a similar name appears only under *Not asserted*; a shared CDN IP stays a candidate.
+10. **Victim claims.** On a multi-victim case, record three claims, link their source transactions, record the simulated bank hold from the generated notice: traced inflow exceeds the documented hold, so the account is flagged oversubscribed and nothing is allocated. Advance one claim through investigator → supervisor → export-ready and download the readiness pack.
+11. **Cooperation pack.** Fill the request fields, watch the validation checklist, attach the FIR PDF and endorsement, endorse as supervisor, export the ZIP and open manifest.json to show the hashes.
+12. **OCR.** Upload the generated screenshot: the preview shows engine, confidence and the “needs human verification” state; the extracted VPA/URL become candidate mentions until corroborated.
+13. **Reproducibility.** Generate seed 42 again → identical file hashes. Change the seed → a new case.
+14. **Benchmark slide** (docs/BENCHMARK.md): full layer = 0 false links across all cases vs. 144 without safeguards; counter-evidence recall 0.87 vs 0.63.

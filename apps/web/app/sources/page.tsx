@@ -5,7 +5,7 @@ import Shell, { State } from "@/components/Shell";
 import { I } from "@/components/icons";
 import { api, fmtTime, getUser } from "@/lib/api";
 
-const STYLE: Record<string, string> = { live: "bg-[#e3f3f0] text-[#136f63]", configured: "bg-[#e7eff9] text-[#174a84]", not_configured: "bg-[#eef1f4] text-ink-muted", unavailable: "bg-[#fde8e8] text-[#8a1c1c]", mock: "bg-[#fdf3e0] text-[#8a5a0f]" };
+const STYLE: Record<string, string> = { live: "bg-ok-soft text-ok", configured: "bg-accent-soft text-accent-deep", not_configured: "bg-panel text-ink-muted", unavailable: "bg-danger-soft text-danger", mock: "bg-saffron-soft text-warn" };
 const MEANING: Record<string, string> = { live: "A real authenticated request succeeded in this process.", configured: "Credentials/flags are present; no request has been made yet.", not_configured: "Disabled or no key. The app works without it.", unavailable: "Configured but the last health check failed.", mock: "Offline synthetic adapter; never contacts a network." };
 const ABOUT: Record<string, string> = { rdap: "Current domain registration data (registrar, creation date). Current state only, not historical ownership.", dns: "Current A-record answers from the system resolver. Not passive/historical DNS.", urlhaus: "abuse.ch URLhaus malware-URL indicators (community key).", threatfox: "abuse.ch ThreatFox IOC look-ups (community key; IOCs expire after ~6 months).", misp: "Operator-run MISP instance via its Automation API.", synthetic_mock: "Technical observations shipped inside synthetic case bundles." };
 
@@ -28,7 +28,7 @@ export default function SourcesPage() {
                 <div className="flex items-start justify-between gap-2"><div className="font-semibold">{r.name.replace("_", " ")}</div><span className={`badge ${STYLE[r.status]}`}>{r.status.replace("_", " ")}</span></div>
                 <div className="mt-1 text-xs text-ink-muted">{r.provider}</div>
                 <p className="mt-2 text-sm">{ABOUT[r.name]}</p>
-                <div className="mt-2 rounded-lg bg-[#f6f8fa] p-2 text-xs"><div className="font-semibold">{MEANING[r.status]}</div><div className="text-ink-muted">{r.detail}</div></div>
+                <div className="mt-2 rounded-lg bg-canvas p-2 text-xs"><div className="font-semibold">{MEANING[r.status]}</div><div className="text-ink-muted">{r.detail}</div></div>
                 <div className="mt-1 text-[11px] text-ink-muted">checked {fmtTime(r.last_checked)}</div>
               </li>
             ))}

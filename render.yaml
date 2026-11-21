@@ -40,6 +40,20 @@ services:
         value: "false"
       - key: ENABLE_DNS
         value: "false"
+      - key: OCR_ENGINE
+        value: auto          # native runtime has no tesseract binary; RapidOCR (pure Python) is used. Use the Dockerfile for Tesseract eng+hin.
+      - key: STORAGE_BACKEND
+        value: local         # set to s3 and fill the S3_* secrets below for durable uploads
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
 
 databases:
   - name: ps05x-db

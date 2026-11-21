@@ -2,23 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
-body { @apply bg-[#f4f6f9] text-ink antialiased; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { @apply outline-none ring-2 ring-accent ring-offset-2; }
+/* ---------- Design tokens: "Rajasthan cyber investigation operations room" (light) ---------- */
+:root {
+  color-scheme: light;
+  --canvas: #f1eee7;         /* warm sandstone */
+  --canvas-deep: #e9e4d9;
+  --card: #fbfaf6;           /* ivory */
+  --panel: #e9eef2;          /* pale blue-grey */
+  --rail: #17283a;           /* midnight navy */
+  --rail-2: #1f3448;
+  --rail-text: #d7e0ea;
+  --ink: #172536;
+  --slate: #647386;
+  --line: #ded8cc;
+  --line-strong: #c9c1b2;
+  --accent: #147d83;         /* peacock teal */
+  --accent-deep: #0f6368;
+  --accent-soft: #e1efef;
+  --terracotta: #b66a4d;
+  --terracotta-soft: #f3e4dc;
+  --saffron: #c58a36;
+  --saffron-soft: #f6ecd8;
+  --ok: #1e6b4f;
+  --ok-soft: #e1efe8;
+  --warn: #8a5a0f;
+  --warn-soft: #f7ecd4;
+  --danger: #9b3b3b;
+  --danger-soft: #f6e3e1;
+  --focus: #147d83;
+  --shadow: 0 1px 2px rgba(23, 37, 54, 0.06), 0 6px 20px -12px rgba(23, 37, 54, 0.18);
+  --radius: 12px;
+  --t: 150ms;
+}
+
+html { font-feature-settings: "tnum" 1, "cv11" 1; }
+body {
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(1100px 500px at 100% -10%, rgba(197, 138, 54, 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(20, 125, 131, 0.07), transparent 55%),
+    linear-gradient(rgba(23, 37, 54, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 37, 54, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, 28px 28px, 28px 28px;
+  background-attachment: fixed;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+
 @layer components {
-.card { @apply rounded-xl border border-line bg-white p-4 shadow-sm; }
-.btn { @apply inline-flex items-center gap-2 rounded-lg border border-transparent bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-50; }
-.btn-secondary { @apply inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink shadow-sm transition hover:border-accent/40 hover:bg-accent-light disabled:cursor-not-allowed disabled:opacity-50; }
-.btn-icon { @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-ink-muted hover:bg-[#f1f4f7]; }
-.input { @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm shadow-sm placeholder:text-ink-muted/70; }
-.label { @apply mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ink-muted; }
-.badge { @apply inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
-.chip { @apply inline-flex cursor-pointer items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-medium transition hover:border-accent/50; }
-.chip-on { @apply border-accent bg-accent-light text-accent-dark; }
-table.data { @apply w-full border-collapse text-sm; }
-table.data th { @apply sticky top-0 border-b border-line bg-[#f1f4f7] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-muted; }
-table.data td { @apply border-b border-line px-3 py-2 align-top; }
-table.data tbody tr:hover { @apply bg-[#fafbfd]; }
-.callout { @apply flex gap-3 rounded-xl border border-accent/20 bg-accent-light/60 p-3 text-sm; }
-.warn { @apply text-[#8a5a0f]; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+  .inset { background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; }
+  .btn { @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50; background: var(--accent); border: 1px solid var(--accent-deep); transition: background var(--t), transform var(--t); }
+  .btn:hover:not(:disabled) { background: var(--accent-deep); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn-secondary { @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-50; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); transition: background var(--t), border-color var(--t); }
+  .btn-secondary:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+  .btn-ghost { @apply inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium; color: var(--slate); transition: background var(--t), color var(--t); }
+  .btn-ghost:hover { background: rgba(23, 37, 54, 0.06); color: var(--ink); }
+  .btn-icon { @apply inline-flex h-9 w-9 items-center justify-center rounded-lg; background: var(--card); color: var(--slate); border: 1px solid var(--line); }
+  .btn-icon:hover { background: var(--panel); color: var(--ink); }
+  .input { @apply w-full rounded-lg px-3 py-2 text-sm shadow-sm; background: var(--card); border: 1px solid var(--line-strong); color: var(--ink); }
+  .input::placeholder { color: var(--slate); opacity: 0.8; }
+  .label { @apply mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em]; color: var(--slate); }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em]; color: var(--accent-deep); }
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
+  .chip { @apply inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium; background: var(--card); border: 1px solid var(--line-strong); color: var(--ink); transition: border-color var(--t), background var(--t); }
+  .chip:hover { border-color: var(--accent); }
+  .chip-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 0.92em; letter-spacing: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+  table.data { @apply w-full border-collapse text-sm; }
+  table.data th { @apply sticky top-0 z-[1] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide; background: var(--panel); color: var(--slate); border-bottom: 1px solid var(--line-strong); }
+  table.data td { @apply px-3 py-2 align-top; border-bottom: 1px solid var(--line); }
+  table.data tbody tr { transition: background var(--t); }
+  table.data tbody tr:hover { background: rgba(20, 125, 131, 0.05); }
+  .callout { @apply flex gap-3 rounded-xl p-3 text-sm; background: var(--accent-soft); border: 1px solid rgba(20, 125, 131, 0.25); }
+  .callout-warn { @apply flex gap-3 rounded-xl p-3 text-sm; background: var(--warn-soft); border: 1px solid rgba(138, 90, 15, 0.3); color: var(--warn); }
+  .warn { color: var(--warn); }
+  .danger { color: var(--danger); }
+  .ok { color: var(--ok); }
+  .muted { color: var(--slate); }
+  .jaali { background-image: radial-gradient(circle at 1px 1px, rgba(215, 224, 234, 0.12) 1px, transparent 1.5px); background-size: 14px 14px; }
+  .skeleton { @apply animate-pulse rounded-md; background: linear-gradient(90deg, var(--panel), var(--canvas-deep), var(--panel)); }
+  .section-title { @apply text-base font-semibold tracking-tight; }
+  .kbd { @apply rounded px-1.5 py-0.5 text-[11px]; background: var(--panel); border: 1px solid var(--line-strong); }
+  .lvl-directly_observed { background: var(--accent-soft); color: var(--accent-deep); }
+  .lvl-corroborated { background: var(--ok-soft); color: var(--ok); }
+  .lvl-derived { background: var(--panel); color: #3d4c5e; }
+  .lvl-candidate { background: var(--saffron-soft); color: var(--warn); }
+  .lvl-contradicted { background: var(--danger-soft); color: var(--danger); }
+  .lvl-stale { background: var(--terracotta-soft); color: #7a4a36; }
+  .lvl-insufficient { background: var(--panel); color: var(--slate); }
 }

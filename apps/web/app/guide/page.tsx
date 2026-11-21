@@ -24,8 +24,8 @@ export default function GuidePage() {
                 <h2 className="text-lg font-bold">{g.title}</h2>
                 <p className="mt-1 text-sm">{g.purpose}</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  <div className="rounded-lg bg-[#f6f8fa] p-3"><div className="label">What you give it</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.inputs.map((x) => <li key={x}>{x}</li>)}</ul></div>
-                  <div className="rounded-lg bg-[#f6f8fa] p-3"><div className="label">What you get</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.outputs.map((x) => <li key={x}>{x}</li>)}</ul></div>
+                  <div className="rounded-lg bg-canvas p-3"><div className="label">What you give it</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.inputs.map((x) => <li key={x}>{x}</li>)}</ul></div>
+                  <div className="rounded-lg bg-canvas p-3"><div className="label">What you get</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.outputs.map((x) => <li key={x}>{x}</li>)}</ul></div>
                   <div className="rounded-lg bg-accent-light/60 p-3"><div className="label">Tips</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.tips.map((x) => <li key={x}>{x}</li>)}</ul></div>
                 </div>
               </section>

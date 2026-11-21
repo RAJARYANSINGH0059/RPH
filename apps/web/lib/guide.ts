@@ -58,6 +58,27 @@ export const GUIDE: Record<string, GuideSection> = {
     outputs: ["PDF with sources and hashes, parsing warnings, transaction trail, fund paths, infrastructure observations with times, relationship table with locators, counter-evidence, unresolved items and the disclaimer"],
     tips: ["The report separates observed facts, derived analysis, candidates and unresolved issues.", "It is an investigative aid; it never claims legal admissibility."],
   },
+  crosscase: {
+    title: "Cross-case correlation",
+    purpose: "Finds exact, source-backed bridges between cases you are authorised to access: the same account, VPA, phone, email, reference, URL or domain; the same transaction reference and amount; shared infrastructure as a candidate only.",
+    inputs: ["Two to twelve cases you can open (a case you cannot access is never searched or revealed)"],
+    outputs: ["Links classed corroborated / exact / derived / candidate / stale with the source case, file hash, locator, method and counter-evidence", "A ‘not asserted’ list of similar names that were deliberately not linked", "A fingerprint so the same input and algorithm version give the same result"],
+    tips: ["Shared hosting never becomes common ownership here either.", "Entities are never merged across cases; open each case to see the original records."],
+  },
+  claims: {
+    title: "Victim claims & restitution readiness",
+    purpose: "Prepares a reconciliation that a Money Restoration Module reviewer can check: what each victim claims, which transactions trace it, what is documented as held or restored, and what remains unresolved or competing.",
+    inputs: ["Claims entered from complaint acknowledgements / FIR references", "Links from each claim to source transactions", "Hold or restoration records that cite a source document already in the case (statement rows are refused)"],
+    outputs: ["Per-claim claimed / traced / unresolved amounts", "Per-account traced inflow vs documented held, with oversubscription flags", "Competing and duplicate claim warnings", "A PDF/JSON readiness pack with a manual review checklist"],
+    tips: ["The tool never allocates funds or decides entitlement.", "Approval states: draft → investigator checked → supervisor checked → export ready.", "Simulated holds from synthetic cases are labelled as simulated."],
+  },
+  cooperation: {
+    title: "Cross-state cooperation pack",
+    purpose: "Assembles the fields and attachments the cooperation request process asks for, validates them, and exports a ZIP for manual submission.",
+    inputs: ["Officer, jurisdiction, FIR and supervising-officer details", "FIR gist and assistance details (10–500 characters each)", "The authorised FIR PDF and a supervisor-signed endorsement, plus selected evidence"],
+    outputs: ["A validation checklist that names missing fields", "Supervisor endorsement gate before export", "ZIP with manifest.json, a summary PDF, attachments with SHA-256 and the money/infrastructure trace"],
+    tips: ["Nothing is submitted automatically; there is no portal login or CAPTCHA handling.", "Any edit after endorsement returns the pack to draft."],
+  },
   sources: {
     title: "Data sources",
     purpose: "Shows which external look-ups (RDAP, DNS, URLhaus, ThreatFox, MISP) are configured, and their real status.",

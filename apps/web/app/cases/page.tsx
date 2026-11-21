@@ -60,7 +60,7 @@ export default function CasesPage() {
               {shown.map((c) => (
                 <li key={c.id}>
                   <Link href={`/cases/${c.id}`} className="card flex h-full flex-col gap-2 transition hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="flex items-start justify-between gap-2"><div className="font-semibold leading-snug">{c.title}</div>{c.is_synthetic ? <span className="badge shrink-0 bg-synthetic text-white">synthetic</span> : <span className="badge shrink-0 bg-[#eef1f4]">uploaded</span>}</div>
+                    <div className="flex items-start justify-between gap-2"><div className="font-semibold leading-snug">{c.title}</div>{c.is_synthetic ? <span className="badge shrink-0 bg-synthetic text-white">synthetic</span> : <span className="badge shrink-0 bg-panel">uploaded</span>}</div>
                     <p className="line-clamp-2 text-sm text-ink-muted">{c.summary || "No summary recorded."}</p>
                     <div className="mt-auto flex items-center justify-between pt-1 text-xs text-ink-muted"><span>{c.internal_ref ? `ref ${c.internal_ref}` : "no reference"} · {c.status}</span><span>{fmtTime(c.updated_at).slice(0, 16)}</span></div>
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-accent">Open case <I.arrow width={14} height={14} /></span>

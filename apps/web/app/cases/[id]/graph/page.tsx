@@ -131,7 +131,7 @@ export default function GraphPage() {
   const candidates = view?.edges.filter((e: any) => ["candidate", "stale", "contradicted"].includes(e.evidence_level)) || [];
 
   return (
-    <Shell caseId={id} synthetic={c?.is_synthetic} title="Investigation graph" subtitle="Start with one focus. Click a line for its evidence; click a circle to see its neighbourhood." pageKey="graph" step="graph">
+    <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title="Investigation graph" subtitle="Start with one focus. Click a line for its evidence; click a circle to see its neighbourhood." pageKey="graph" step="graph">
       <State loading={!g && !error} error={error}>
         {g && g.edges.length === 0 && <div className="card border-dashed text-center text-sm text-ink-muted">No relationships yet. Upload a statement or generate a synthetic case first.</div>}
         {g && g.edges.length > 0 && view && (
@@ -162,17 +162,17 @@ export default function GraphPage() {
               <div className="relative">
                 {layout === "lanes" && LANES.filter((l) => view.nodes.some((n: any) => l.types.includes(n.type))).length > 1 && (
                   <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-around px-4 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-                    {LANES.filter((l) => view.nodes.some((n: any) => l.types.includes(n.type))).map((l) => <span key={l.name} className="rounded-full bg-white/90 px-2 py-0.5 shadow-sm">{l.name}</span>)}
+                    {LANES.filter((l) => view.nodes.some((n: any) => l.types.includes(n.type))).map((l) => <span key={l.name} className="rounded-full bg-card/90 px-2 py-0.5 shadow-sm">{l.name}</span>)}
                   </div>
                 )}
-                <div ref={ref} className="card h-[560px] p-0" role="img" aria-label="Investigation graph; the same relationships are listed in the table below" />
+                <div ref={ref} className="card h-[560px] p-0" style={{ backgroundImage: "linear-gradient(rgba(23,37,54,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(23,37,54,0.05) 1px, transparent 1px)", backgroundSize: "24px 24px" }} role="img" aria-label="Investigation graph; the same relationships are listed in the table below" />
                 {view.edges.length === 0 && <div className="absolute inset-0 flex items-center justify-center text-sm text-ink-muted">Nothing matches these filters. Try another focus or clear “Evidence-backed only”.</div>}
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                 <div className="card text-sm">
                   <div className="font-semibold">What you are looking at</div>
                   <p className="mt-1 text-ink-muted">{view.nodes.length} entities and {view.edges.length} relationships in the <strong>{PRESETS[preset].label}</strong> focus{view.hiddenNodes > 0 ? ` (${view.hiddenNodes} isolated entities hidden)` : ""}. {candidates.length > 0 ? <>{candidates.length} dashed line{candidates.length > 1 ? "s are" : " is"} a hypothesis or stale observation that needs your decision.</> : "Every visible line is observed, corroborated or derived."}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs">{Object.entries(view.byType).sort((a: any, b: any) => b[1] - a[1]).map(([t, n]: any) => <span key={t} className="rounded-full bg-[#f1f4f7] px-2 py-0.5" title={EDGE_HELP[t]}>{t.replace(/_/g, " ").toLowerCase()} · {n}</span>)}</div>
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs">{Object.entries(view.byType).sort((a: any, b: any) => b[1] - a[1]).map(([t, n]: any) => <span key={t} className="rounded-full bg-panel px-2 py-0.5" title={EDGE_HELP[t]}>{t.replace(/_/g, " ").toLowerCase()} · {n}</span>)}</div>
                 </div>
                 <div className="card text-xs">
                   <div className="label">Legend</div>
@@ -199,9 +199,9 @@ export default function GraphPage() {
               {node && !edge && (
                 <aside className="card text-sm" aria-label="Entity 360">
                   <div className="flex items-start justify-between"><h2 className="font-semibold">Entity 360</h2><button className="btn-icon" onClick={() => { setNode(null); cyRef.current?.elements().removeClass("dim"); }} aria-label="Close"><I.close /></button></div>
-                  <div className="mt-1 flex items-center gap-2"><span className="badge" style={{ background: (NODE_COLORS[node.entity.type] || "#7b8794") + "22", color: NODE_COLORS[node.entity.type] }}>{node.entity.type.replace("_", " ")}</span><span className="font-mono text-xs">{node.entity.attributes.key}</span></div>
+                  <div className="mt-1 flex items-center gap-2"><span className="badge" style={{ background: (NODE_COLORS[node.entity.type] || "#7b8794") + "22", color: NODE_COLORS[node.entity.type] }}>{node.entity.type.replace("_", " ")}</span><span className="mono text-xs">{node.entity.attributes.key}</span></div>
                   <div className="mt-1 text-xs text-ink-muted">first seen {node.first_seen?.slice(0, 10) || "?"} · last seen {node.last_seen?.slice(0, 10) || "?"} · {node.edges.length} relationships</div>
-                  {node.triage && <div className="mt-2 rounded-lg bg-[#f6f8fa] p-2.5 text-xs"><div className="font-semibold">Triage (rules; requires review): {node.triage.label.replace(/_/g, " ")}</div><div>{node.triage.reasons.map((r: string) => r.replace(/_/g, " ")).join(", ") || "no rule fired"}</div><div className="mt-1 text-ink-muted">fan-in {node.features.fan_in} · fan-out {node.features.fan_out} · median holding {node.features.median_holding_hours < 0 ? "n/a" : node.features.median_holding_hours.toFixed(1) + " h"} · out/in {node.features.out_in_ratio.toFixed(2)}</div></div>}
+                  {node.triage && <div className="mt-2 rounded-lg bg-canvas p-2.5 text-xs"><div className="font-semibold">Triage (rules; requires review): {node.triage.label.replace(/_/g, " ")}</div><div>{node.triage.reasons.map((r: string) => r.replace(/_/g, " ")).join(", ") || "no rule fired"}</div><div className="mt-1 text-ink-muted">fan-in {node.features.fan_in} · fan-out {node.features.fan_out} · median holding {node.features.median_holding_hours < 0 ? "n/a" : node.features.median_holding_hours.toFixed(1) + " h"} · out/in {node.features.out_in_ratio.toFixed(2)}</div></div>}
                   <div className="label mt-3">Relationships</div>
                   <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">{node.edges.map((e: any) => <li key={e.id}><button className="flex w-full items-center justify-between gap-2 rounded px-1.5 py-1 text-left hover:bg-accent-light" onClick={() => setEdge(e.id)}><span>{e.type.replace(/_/g, " ").toLowerCase()} · {e.source === node.entity.id ? "→ " + nodeLabel(e.target) : "← " + nodeLabel(e.source)}</span><LevelBadge level={e.evidence_level} /></button></li>)}</ul>
                 </aside>
@@ -210,7 +210,7 @@ export default function GraphPage() {
                 <div className="card text-sm">
                   <div className="font-semibold">Evidence panel</div>
                   <p className="mt-1 text-ink-muted">Click any line in the graph or a row in the tables. You will see the source file and exact cell or page, the time the fact was valid and observed, the method that created the link, its limitations, counter-evidence and the review buttons.</p>
-                  <div className="mt-3 rounded-lg bg-[#f6f8fa] p-2.5 text-xs"><div className="font-semibold">Reading the lines</div><ul className="mt-1 list-disc space-y-0.5 pl-4"><li>Solid = observed or derived fact</li><li>Thick = corroborated by two sources</li><li>Dashed = candidate or stale; needs a decision</li><li>Arrow = direction of money or reference; no arrow = symmetric association</li></ul></div>
+                  <div className="mt-3 rounded-lg bg-canvas p-2.5 text-xs"><div className="font-semibold">Reading the lines</div><ul className="mt-1 list-disc space-y-0.5 pl-4"><li>Solid = observed or derived fact</li><li>Thick = corroborated by two sources</li><li>Dashed = candidate or stale; needs a decision</li><li>Arrow = direction of money or reference; no arrow = symmetric association</li></ul></div>
                 </div>
               )}
             </div>

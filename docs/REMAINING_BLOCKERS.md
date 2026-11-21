@@ -1,0 +1,14 @@
+# Remaining blockers and deferred work (gap-closure run, 2026-11-21)
+
+| Item | Status | What is needed |
+|---|---|---|
+| Tesseract on Render | Not available on the native Python runtime. RapidOCR (pure Python, English/Latin) is active there; Tesseract with English + Hindi runs via `apps/api/Dockerfile`. | Switch the Render service to the Docker runtime (new service; URL may change) if Hindi OCR is required in the cloud. |
+| Durable evidence storage on Render | Adapter implemented and tested locally against the local backend; **not exercised against a real bucket** in this run. | Create a private R2/S3 bucket, set `STORAGE_BACKEND=s3` and the `S3_*` secrets on Render, redeploy, then run the storage round-trip from `/api/health/live` and an upload. |
+| PostgreSQL migration test on Postgres | Verified on SQLite locally and by the GitHub Actions job on PostgreSQL 16 for the previous migration; the new migration `7e960fbc555c` runs on Render at start (`alembic upgrade head`). | Watch the first Render deploy log of this branch. |
+| Benchmark size | Smoke (4 seeds, 96 cases/config) and a frozen held-out range (seeds 700–703, `fake_customer_care` reported as held-out). Not 600 cases/config. | Run `python tests/benchmark/run_benchmark.py --seeds 25 --seed-start 1000` (~10 min) when runtime allows. |
+| Path recall under noise | Algorithm v2 adds explicit unresolved hops, split/merge flags, alternatives and new metrics; recall is still limited by ambiguous dates and absent second-layer statements by design. | Column-level date-format inference per statement (dd/mm vs mm/dd majority vote) is the next deterministic improvement. |
+| PS01-compatible scam-artifact intake (P2) | Deferred. Documents, screenshots and text already flow through the indicator extractor; APK static inspection is not implemented. | Separate increment. |
+| Hindi UI labels | Deferred. | Separate increment; technical evidence fields stay English. |
+| Official PS05 expanded brief / sample data | Not re-checked in a browser in this run. | Manual check before the action-plan submission. |
+| Cooperation request process | Pack fields follow the publicly described form; the `/old/` portal page was not re-verified as current. | Verify the current official process; the pack remains a manual handoff. |
+| Deployment protection on Vercel preview URLs | Deployment-specific URLs are SSO-protected; the production alias is public. | None (expected behaviour). |

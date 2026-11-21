@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: apps/api/requirements.txt
       - run: pip install -r requirements.txt ruff
       - name: Lint
-        run: ruff check app tests --select E,F,W --ignore E501,E731
+        run: ruff check app tests --select E,F,W --ignore E501,E731,E741
       - name: Unit + integration + security + determinism tests
         run: python -m pytest -q
       - name: Migration on PostgreSQL

@@ -24,7 +24,7 @@ export default function TimelinePage() {
   }, [shown]);
   const present = FAMILIES.filter((f) => events?.some((e) => e.family === f));
   return (
-    <Shell caseId={id} synthetic={c?.is_synthetic} title="Timeline" subtitle="All dated evidence on one axis, grouped by day. Uncertain times are marked, never guessed." pageKey="timeline" step="graph">
+    <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title="Timeline" subtitle="All dated evidence on one axis, grouped by day. Uncertain times are marked, never guessed." pageKey="timeline" step="graph">
       <State loading={!events && !error} error={error} empty={events && events.length === 0 ? "No dated evidence yet." : null}>
         <div className="card mb-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="label mb-0">Show</span>
@@ -39,7 +39,7 @@ export default function TimelinePage() {
                 {evs.map((e: any) => (
                   <li key={e.id} className="mb-3 ml-4">
                     <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" style={{ background: COLORS[e.family] }} aria-hidden />
-                    <div className="text-xs text-ink-muted">{e.time ? fmtTime(e.time).slice(11, 19) : "—"} {e.time_precision !== "second" && <span className="badge bg-[#fdf3e0] text-[#8a5a0f]">{e.time_precision.replace(/_/g, " ")}</span>} {e.time_raw && <span className="font-mono">raw: {e.time_raw}</span>}</div>
+                    <div className="text-xs text-ink-muted">{e.time ? fmtTime(e.time).slice(11, 19) : "—"} {e.time_precision !== "second" && <span className="badge bg-saffron-soft text-warn">{e.time_precision.replace(/_/g, " ")}</span>} {e.time_raw && <span className="mono">raw: {e.time_raw}</span>}</div>
                     <div className="text-sm"><span className="badge mr-1" style={{ background: COLORS[e.family] + "22", color: COLORS[e.family] }}>{e.family}</span>{e.label}</div>
                   </li>
                 ))}

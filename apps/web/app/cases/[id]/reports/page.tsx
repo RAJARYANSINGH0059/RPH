@@ -20,7 +20,7 @@ export default function ReportsPage() {
   }
   const n = (f: (r: any) => boolean) => rep ? rep.relationships.filter(f).length : 0;
   return (
-    <Shell caseId={id} synthetic={c?.is_synthetic} title="Reports and export" subtitle="A source-backed report that separates observed facts, derived analysis, hypotheses and open questions." pageKey="reports" step="report"
+    <Shell caseId={id} caseTitle={c?.title} synthetic={c?.is_synthetic} uploaded={c && !c.is_synthetic} title="Reports and export" subtitle="A source-backed report that separates observed facts, derived analysis, hypotheses and open questions." pageKey="reports" step="report"
       actions={rep && <><button className="btn" disabled={!!busy} onClick={() => download(`/cases/${id}/report.pdf`, `ps05x_report_${id.slice(0, 8)}.pdf`, "pdf")}><I.download /> {busy === "pdf" ? "Preparing…" : "PDF report"}</button><button className="btn-secondary" disabled={!!busy} onClick={() => download(`/cases/${id}/report.json`, `ps05x_report_${id.slice(0, 8)}.json`, "json")}>JSON</button><button className="btn-secondary" disabled={!!busy} onClick={() => download(`/cases/${id}/report/transactions.csv`, `ps05x_transactions_${id.slice(0, 8)}.csv`, "csv")}>CSV</button></>}>
       <State loading={!rep && !error} error={error}>
         {rep && (
@@ -34,7 +34,7 @@ export default function ReportsPage() {
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="card"><h2 className="font-semibold">What the PDF contains</h2><ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">{["Case metadata and synthetic/real-data status", "Sources with SHA-256 hashes", "Parsing methods and warnings", "Transaction trail with raw strings and locators", "Reconstructed fund paths", "Account triage signals (rules; review required)", "Domain / IP / DNS / hosting observations with observation times", "Relationship table with evidence level and source locator", "Counter-evidence and alternative explanations", "Unresolved gaps and manual review items", "Disclaimer"].map((x) => <li key={x}>{x}</li>)}</ol></div>
-              <div className="card"><h2 className="font-semibold">Sources and hashes</h2><ul className="mt-2 space-y-1.5 text-xs">{rep.sources.map((s: any) => <li key={s.id} className="flex items-start gap-2"><I.file width={14} height={14} className="mt-0.5 shrink-0 text-ink-muted" /><div><div className="font-medium">{s.name} <span className="text-ink-muted">({s.kind})</span></div><div className="break-all font-mono text-[10px] text-ink-muted">{s.sha256}</div></div></li>)}</ul></div>
+              <div className="card"><h2 className="font-semibold">Sources and hashes</h2><ul className="mt-2 space-y-1.5 text-xs">{rep.sources.map((s: any) => <li key={s.id} className="flex items-start gap-2"><I.file width={14} height={14} className="mt-0.5 shrink-0 text-ink-muted" /><div><div className="font-medium">{s.name} <span className="text-ink-muted">({s.kind})</span></div><div className="break-all mono text-[10px] text-ink-muted">{s.sha256}</div></div></li>)}</ul></div>
             </div>
             <div className="card p-0">
               <div className="px-4 py-3"><h2 className="font-semibold">Relationship table</h2><p className="text-xs text-ink-muted">Each row names its evidence level, its method and the exact source locator.</p></div>

@@ -10,15 +10,19 @@ FastAPI (apps/api)  —  Render web service
       ├── /api/cases/{id}/graph|entities|edges|evidence|report.*
       ├── /api/synthetic      options, generate, manifest (public only)
       ├── /api/connectors     status, healthcheck, enrich
+      ├── /api/crosscase      correlate (permission-aware), related cases, membership management
+      ├── /api/cases/{id}/claims        victim claims, transaction links, funds records, approval states, readiness pack
+      ├── /api/cases/{id}/cooperation   cooperation request pack: validate, endorse, export ZIP
       └── /api/health         live, ready
       |
       ├── services/ingestion.py   the ONE ingestion path (uploads and synthetic imports)
       │       parsers/common      money→paise, dates (ambiguity flagged), header mapping, magic bytes
       │       parsers/tabular     CSV/XLSX with sheet/row/cell locators
-      │       parsers/documents   PDF text layer → OCR fallback (if engine present), DOCX, TXT, images
+      │       parsers/documents   PDF text layer → OCR chain (parsers/ocr: Tesseract → RapidOCR → none), DOCX, TXT, images
       │       parsers/indicators  URL/domain/IP/VPA/phone/UTR/account regexes (strings only, never visited)
       │       parsers/technical_json  DNS/hosting/URL/RDAP observations with JSON-path locators
-      ├── graph/engine.py          NetworkX export, alias map, money edges, time-ordered paths, features, timeline
+      ├── graph/engine.py          NetworkX export, alias map, money edges, path reconstruction v2 (hop classes, unresolved hops), features, timeline
+      ├── services/crosscase.py    query-time cross-case correlation with provenance; services/claims.py reconciliation
       ├── graph/rules.py           verification layer: corroboration, aliasing, temporal validity, shared-infra guard,
       │                            similar-name guard, duplicate/OCR/ambiguity counter-evidence
       ├── connectors/              base (SSRF guard, allowlist, timeouts, cache, rate limit) + RDAP, DNS, URLhaus,
@@ -28,13 +32,13 @@ FastAPI (apps/api)  —  Render web service
       └── services/ml_triage.py    optional checksummed model (ml/artifacts)
       |
 PostgreSQL (Render) — system of record; SQLite for local dev/tests. Alembic migrations.
-Local filesystem for uploads (S3-compatible storage is the documented upgrade path).
+Uploads: local filesystem or S3-compatible object storage (`services/storage.py`, hash-verified, signed URLs).
 Sealed ground truth: BENCHMARK_STORE_DIR (separate directory; no router imports it).
 ```
 
 ## Data model (apps/api/app/models)
 
-users · cases · case_memberships · source_files (sha256, kind, status) · parse_runs (mapping, warnings, stats) · evidence_items (raw_value, normalised_value, source_locator, extraction_method, parser version, event/valid time + precision, observed_at, ingested_at, quality_flags) · transactions (paise, raw strings, direction, channel, duplicate_of) · entities (typed, unique per case) · relationships (type, evidence_level, valid_from/to, observed_at, method + version, heuristic_score, limitations, review_status) · relationship_evidence · counter_evidence · analyst_reviews · audit_events (append-only) · synthetic_scenarios (public manifest + opaque sealed ref) · benchmark_runs.
+users · cases · case_memberships · victim_claims · claim_transaction_links · funds_records · cooperation_packs · source_files (sha256, kind, status) · parse_runs (mapping, warnings, stats) · evidence_items (raw_value, normalised_value, source_locator, extraction_method, parser version, event/valid time + precision, observed_at, ingested_at, quality_flags) · transactions (paise, raw strings, direction, channel, duplicate_of) · entities (typed, unique per case) · relationships (type, evidence_level, valid_from/to, observed_at, method + version, heuristic_score, limitations, review_status) · relationship_evidence · counter_evidence · analyst_reviews · audit_events (append-only) · synthetic_scenarios (public manifest + opaque sealed ref) · benchmark_runs.
 
 ## Relationship semantics
 

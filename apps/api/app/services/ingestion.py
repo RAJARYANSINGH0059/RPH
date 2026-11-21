@@ -402,7 +402,8 @@ def _ingest_document(db: Session, case: Case, sf: SourceFile, file_entity: Entit
                              [iev.id], observed_at=sf.uploaded_at, limitations=lim,
                              attributes={"indicator_kind": ind.kind, "locator": iev.source_locator})
         if len(snippets) < 5:
-            snippets.append({"locator": block.locator, "method": block.method, "text": block.text[:400]})
+            snippets.append({"locator": block.locator, "method": block.method, "text": block.text[:400],
+                             "ocr": {k: v for k, v in ocr_meta.items() if k != "boxes"} if ocr_meta else None})
     run.stats = {**run.stats, "indicators": found_total}
     preview = {"blocks": len(res.blocks), "pages": res.page_count, "indicators": found_total, "snippets": snippets, "warnings": warnings}
     return run, preview
