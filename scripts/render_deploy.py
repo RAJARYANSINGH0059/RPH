@@ -116,7 +116,7 @@ def main():
         "STORAGE_DIR": "/opt/render/project/src/apps/api/data", "BENCHMARK_STORE_DIR": "/opt/render/project/src/apps/api/data/sealed",
         "DEMO_ANALYST_PASSWORD": sec["DEMO_ANALYST_PASSWORD"], "DEMO_SUPERVISOR_PASSWORD": sec["DEMO_SUPERVISOR_PASSWORD"],
         "DEMO_ADMIN_PASSWORD": sec["DEMO_ADMIN_PASSWORD"], "ENABLE_RDAP": "false", "ENABLE_DNS": "false",
-        "OCR_ENGINE": os.environ.get("OCR_ENGINE", "auto"), "STORAGE_BACKEND": os.environ.get("STORAGE_BACKEND", "local"),
+        "OCR_ENGINE": os.environ.get("OCR_ENGINE", "off")  # free plan: OCR runtime exceeds 512 MiB, "STORAGE_BACKEND": os.environ.get("STORAGE_BACKEND", "local"),
     }
     for k in ("S3_BUCKET", "S3_ENDPOINT_URL", "S3_REGION", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_PREFIX"):
         if os.environ.get(k):

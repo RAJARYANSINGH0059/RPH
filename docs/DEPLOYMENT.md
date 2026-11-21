@@ -68,6 +68,9 @@ If you later connect the Vercel project to the GitHub repo for automatic deploys
 
 ## Notes and limits
 
+- OCR: keep `OCR_ENGINE=off` on 512 MiB instances (the OCR runtime triggers an OOM kill). On >=1 GB set `OCR_ENGINE=auto`; the Docker image adds Tesseract with English and Hindi.
+- Durable storage: set `STORAGE_BACKEND=s3` plus `S3_*` secrets (R2/S3/MinIO) for evidence that must survive redeploys; `/api/health/live` reports the active backend.
+
 - Free-plan web services sleep after inactivity; the first request after a pause takes 30–60 s. Free Postgres expires after 90 days unless upgraded.
 - Uploaded files live on the service's ephemeral disk; synthetic cases regenerate on demand. Attach a Render disk at `STORAGE_DIR` or implement the S3 adapter in `services/storage.py` for durable evidence storage.
 - Migrations run in the start command because free-plan services have no pre-deploy hook.

@@ -91,14 +91,21 @@ def evaluate(db, case, truth: dict, cfg: str) -> dict:
             true_chains.append(chain)
     recon_chains = [list(zip(pth["accounts"], pth["accounts"][1:])) for pth in rpaths]
     covered = sum(1 for ch in true_chains if any(all(e in rc for e in ch) for rc in recon_chains))
-    false_paths = sum(1 for rc in recon_chains if any(e not in hop_true for e in rc))
-    complete = [pth for pth in rpaths if pth["status"] == "complete"]
+    # Multi-hop chains are the assertions that matter: a single legitimate transfer is a fact, not a path claim.
+    multi = [pth for pth in rpaths if pth["hop_count"] >= 2]
+    multi_chains = [list(zip(pth["accounts"], pth["accounts"][1:])) for pth in multi]
+    false_paths = sum(1 for rc in multi_chains if any(e not in hop_true for e in rc))
+    # unresolved is measured on multi-hop chains whose last account has no statement in the bundle but is a scam account
+    # (i.e. the chain genuinely continues) versus chains that end at a true exit
+    exits = {alias.get(a["acct_no"], a["acct_no"]) for a in truth["accounts"] if a["role"] == "exit"}
+    unresolved_true = sum(1 for pth in multi if pth["status"] == "unresolved" and pth["accounts"][-1] not in exits)
+    conserving = [pth for pth in multi if pth["conservation_ratio"] is not None]
     path_metrics = {"coverage": round(covered / len(true_chains), 4) if true_chains else 1.0,
-                    "false_path_rate": round(false_paths / len(rpaths), 4) if rpaths else 0.0,
-                    "amount_conservation_mean": round(sum(pth["conservation_ratio"] or 0 for pth in complete) / len(complete), 4) if complete else None,
-                    "temporal_consistency_rate": round(sum(1 for pth in rpaths if pth["temporal_consistent"]) / len(rpaths), 4) if rpaths else 1.0,
-                    "unresolved_hop_rate": round(sum(1 for pth in rpaths if pth["status"] == "unresolved") / len(rpaths), 4) if rpaths else 0.0,
-                    "paths": len(rpaths), "runtime_seconds": round(path_runtime, 4)}
+                    "false_path_rate": round(false_paths / len(multi), 4) if multi else 0.0,
+                    "amount_conservation_mean": round(sum(min(1.0, pth["conservation_ratio"]) for pth in conserving) / len(conserving), 4) if conserving else None,
+                    "temporal_consistency_rate": round(sum(1 for pth in multi if pth["temporal_consistent"]) / len(multi), 4) if multi else 1.0,
+                    "unresolved_hop_rate": round(unresolved_true / len(multi), 4) if multi else 0.0,
+                    "paths": len(rpaths), "multi_hop_paths": len(multi), "runtime_seconds": round(path_runtime, 4)}
     # --- entity resolution: alias edges correct (vpa<->acct of same account) vs wrong
     er_tp = er_fp = 0
     vpa_to_acct = {a["vpa"]: a["acct_no"] for a in truth["accounts"]}

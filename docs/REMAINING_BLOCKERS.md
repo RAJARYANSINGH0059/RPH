@@ -2,7 +2,7 @@
 
 | Item | Status | What is needed |
 |---|---|---|
-| Tesseract on Render | Not available on the native Python runtime. RapidOCR (pure Python, English/Latin) is active there; Tesseract with English + Hindi runs via `apps/api/Dockerfile`. | Switch the Render service to the Docker runtime (new service; URL may change) if Hindi OCR is required in the cloud. |
+| OCR on Render free plan | **Disabled on the live service** (`OCR_ENGINE=off`): the first OCR request on the 512 MiB free instance was OOM-killed (Render event `server_failed`, `oomKilled`). OCR is verified locally (RapidOCR) and in tests; Tesseract eng+hin is installed by `apps/api/Dockerfile`. | Upgrade the instance to >=1 GB and set `OCR_ENGINE=auto`, or run the Docker image on a paid plan. Scanned pages/images are still stored, hashed and flagged for manual review. |
 | Durable evidence storage on Render | Adapter implemented and tested locally against the local backend; **not exercised against a real bucket** in this run. | Create a private R2/S3 bucket, set `STORAGE_BACKEND=s3` and the `S3_*` secrets on Render, redeploy, then run the storage round-trip from `/api/health/live` and an upload. |
 | PostgreSQL migration test on Postgres | Verified on SQLite locally and by the GitHub Actions job on PostgreSQL 16 for the previous migration; the new migration `7e960fbc555c` runs on Render at start (`alembic upgrade head`). | Watch the first Render deploy log of this branch. |
 | Benchmark size | Smoke (4 seeds, 96 cases/config) and a frozen held-out range (seeds 700–703, `fake_customer_care` reported as held-out). Not 600 cases/config. | Run `python tests/benchmark/run_benchmark.py --seeds 25 --seed-start 1000` (~10 min) when runtime allows. |

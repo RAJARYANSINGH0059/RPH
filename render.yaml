@@ -41,7 +41,7 @@ services:
       - key: ENABLE_DNS
         value: "false"
       - key: OCR_ENGINE
-        value: auto          # native runtime has no tesseract binary; RapidOCR (pure Python) is used. Use the Dockerfile for Tesseract eng+hin.
+        value: "off"        # free 512 MiB instance is OOM-killed by the OCR runtime; set auto on >=1 GB instances or use the Dockerfile (Tesseract eng+hin)
       - key: STORAGE_BACKEND
         value: local         # set to s3 and fill the S3_* secrets below for durable uploads
       - key: S3_BUCKET
