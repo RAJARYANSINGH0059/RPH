@@ -51,13 +51,23 @@ Open http://localhost:3000, sign in as `analyst@demo.local` with the password yo
 
 | What | Command | Result in this build |
 |---|---|---|
-| Backend unit/integration/security/determinism/migration | `cd apps/api; python -m pytest -q` | 38 passed |
+| Backend unit/integration/security/determinism/migration/cross-case/OCR/claims | `cd apps/api; python -m pytest -q` | 58 passed |
 | Model inference (checksum-verified artefact) | `python -m pytest tests/e2e -q` | 3 passed |
 | Frontend | `cd apps/web; npm run lint; npm run typecheck; npm run build` | clean, build OK |
 | Train triage model (scenario-level split) | `python ml/training/train.py --seeds 12` | random forest retained: test F1 0.789 vs rules 0.503 |
 | Smoke benchmark (4 configs × 96 cases) | `python tests/benchmark/run_benchmark.py --seeds 4` | 0 false links with safeguards vs 144 without |
 
 Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`.
+
+## Gap-closure increment (branch `feat/ps05-cross-case-restitution`)
+
+- **Cross-case correlation** (`/crosscase`, `/cases/{id}/crosscase`): permission-aware, query-time; exact / corroborated / derived / candidate / stale classes; every link carries source case, file SHA-256, locator, method, times and counter-evidence; similar names are listed as *not asserted*; entities are never merged.
+- **OCR that works**: engine chain Tesseract (eng+hin, Dockerfile) → RapidOCR (pure Python, used on Render) → explicit unavailable warning; output carries engine, version, confidence, quality and boxes; low-confidence mentions enter the graph as candidates; preview in the upload page.
+- **Path reconstruction v2**: hop classes, split/merge flags, unresolved hops with the statement that would resolve them, alternatives; benchmark adds coverage, false-path rate, amount conservation, temporal consistency, unresolved-hop rate with bootstrap intervals and a frozen held-out seed range.
+- **Victim claims & restitution readiness** (`/cases/{id}/claims`): claimed / traced / documented-held / restored / unresolved kept apart, competing and duplicate detection, evidence-backed hold records (simulated holds labelled), approval states, PDF/JSON readiness pack. Never allocates.
+- **Cross-state cooperation pack** (`/cases/{id}/cooperation`): field and length validation, FIR + supervisor endorsement attachments, supervisor gate, ZIP export with manifest and hashes. Manual handoff only.
+- **S3-compatible storage adapter** (`STORAGE_BACKEND=s3`) with hash verification and signed URLs; health reports storage and OCR status.
+- **Premium light-mode UI**: navy rail, sandstone canvas, design tokens, breadcrumbs, environment pills, skeletons, retry states. See `docs/UI_UX_REDESIGN.md`.
 
 ## What the verification layer guarantees
 

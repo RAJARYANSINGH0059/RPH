@@ -29,6 +29,19 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 
 1. Credit preflight → 2. models/auth/migrations → 3. parsers + ingestion → 4. graph engine + rules → 5. connectors → 6. synthetic factory + sealed store → 7. reports + routers → 8. tests → 9. ML training → 10. benchmark → 11. frontend → 12. deploy config + docs.
 
+## Gap-closure increment (2026-11-21, branch feat/ps05-cross-case-restitution)
+
+| Gap | Status | Where |
+|---|---|---|
+| P0-A cross-case correlation | Done (service, API, membership management, UI, 7 tests) | `app/services/crosscase.py`, `app/routers/crosscase.py`, `apps/web/app/crosscase`, `apps/web/components/CrossCase.tsx` |
+| P0-B OCR | Done (engine chain, metadata, candidate gating, Dockerfile tesseract eng+hin, 7 tests); Render native runtime uses RapidOCR | `app/parsers/ocr.py`, `app/parsers/documents.py` |
+| P0-C path reconstruction | Done (v2 algorithm + 6 new metrics + held-out range); recall limits documented | `app/graph/engine.py`, `tests/benchmark/run_benchmark.py` |
+| P1-A victim claims | Done (models, migration, reconciliation, approvals, packs, UI, 2 tests) | `app/services/claims.py`, `app/routers/claims.py`, `apps/web/app/cases/[id]/claims` |
+| P1-B cooperation pack | Done (validation, endorsement gate, ZIP export, UI, 1 test) | `app/routers/cooperation.py`, `apps/web/app/cases/[id]/cooperation` |
+| P1-C durable storage | Adapter done and unit-tested; not yet enabled on Render (needs bucket + secrets) | `app/services/storage.py` |
+| P2 scam-artifact intake | Deferred | — |
+| Phase 3 UI | Done (tokens, shell, sign-in, all pages restyled, new screens) | `apps/web` |
+
 ## Deployment (2026-11-21)
 
 - GitHub: https://github.com/RAJARYANSINGH0059/RPH (`main`)

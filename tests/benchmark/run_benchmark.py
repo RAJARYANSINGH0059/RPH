@@ -26,6 +26,9 @@ _TMP = tempfile.mkdtemp(prefix="ps05x_bench_")
 os.environ.setdefault("DATABASE_URL", "sqlite:///" + os.path.join(_TMP, "bench.db").replace("\\", "/"))
 os.environ.setdefault("STORAGE_DIR", os.path.join(_TMP, "data"))
 os.environ.setdefault("BENCHMARK_STORE_DIR", os.path.join(_TMP, "sealed"))
+# The benchmark measures financial/infrastructure reconstruction; OCR quality has its own tests (tests/test_ocr_and_storage.py).
+# Disable OCR here unless explicitly requested so runs stay fast and comparable across machines.
+os.environ.setdefault("OCR_ENGINE", "off")
 
 from sqlalchemy import select  # noqa: E402
 

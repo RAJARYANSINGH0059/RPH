@@ -81,7 +81,9 @@ def status() -> dict:
 @lru_cache
 def _rapid():
     from rapidocr_onnxruntime import RapidOCR
-    return RapidOCR()
+    # bounded threads: ~0.7 s per screenshot on a laptop CPU and no oversubscription when several requests run
+    threads = max(1, min(4, (os.cpu_count() or 2) // 2))
+    return RapidOCR(intra_op_num_threads=threads, inter_op_num_threads=1, det_limit_side_len=960)
 
 
 def ocr_image(data: bytes) -> OcrResult | None:
