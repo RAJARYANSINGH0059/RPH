@@ -51,8 +51,8 @@ Held-out numbers match the development seeds within the intervals, so no tuning 
 
 | Target | URL | Verified |
 |---|---|---|
-| Render API (`srv-dc0noo67bikc73bbqjug`, Singapore, free) | https://ps05x-api.onrender.com | `/api/health/live` and `/api/health/ready` 200 on commit `6f1abf0`; migration `7e960fbc555c` applied; from the terminal: sign-in, multi-victim synthetic case (3.8 s), cross-case correlation of two cases (0.4 s; 17 corroborated / 4 exact / 30 derived / 1 stale), claim + link + simulated hold → reconciliation, readiness pack PDF, cooperation pack validation → supervisor endorsement → ZIP export, paths with resolution hints, gzip responses, no COMMON_OPERATOR edges |
-| Vercel web (`ps05x-web`) | https://ps05x-web.vercel.app | 200; redesigned UI served; reports “API ready” when the API is awake |
+| Render API (project RPH, service `rph`, `srv-dc0noo67bikc73bbqjug`, Singapore, free) | https://ps05x-api.onrender.com | `/api/health/live` and `/api/health/ready` 200 on commit `6f1abf0`; migration `7e960fbc555c` applied; from the terminal: sign-in, multi-victim synthetic case (3.8 s), cross-case correlation of two cases (0.4 s; 17 corroborated / 4 exact / 30 derived / 1 stale), claim + link + simulated hold → reconciliation, readiness pack PDF, cooperation pack validation → supervisor endorsement → ZIP export, paths with resolution hints, gzip responses, no COMMON_OPERATOR edges |
+| Vercel web (project `rph`) | https://rph-ps05x.vercel.app and https://ps05x-web.vercel.app | 200; redesigned UI served; reports “API ready” when the API is awake |
 | Local | http://localhost:3000, http://localhost:8000 | running during this session; `scripts/run_local.ps1` restarts both |
 
 Render did not auto-deploy on pushes; deploys were triggered with `python scripts/render_deploy.py`. One incident: the first live OCR request was OOM-killed on the 512 MiB instance; `OCR_ENGINE=off` was set and the service redeployed (RapidOCR remains active locally and in tests).

@@ -78,8 +78,8 @@ def main():
     ap.add_argument("--repo", default="https://github.com/RAJARYANSINGH0059/RPH")
     ap.add_argument("--branch", default="main")
     ap.add_argument("--region", default="singapore")
-    ap.add_argument("--db-name", default="ps05x-db")
-    ap.add_argument("--service-name", default="ps05x-api")
+    ap.add_argument("--db-name", default="rph-db")
+    ap.add_argument("--service-name", default="rph")
     ap.add_argument("--no-wait", action="store_true")
     args = ap.parse_args()
     rd = Render(api_key())
@@ -140,7 +140,7 @@ def main():
         res = rd.post("/services", body)
         svc, deploy_id = res["service"], res.get("deployId")
         print(f"service created: {svc['id']}")
-    url = svc.get("serviceDetails", {}).get("url") or f"https://{args.service_name}.onrender.com"
+    url = svc.get("serviceDetails", {}).get("url") or "https://ps05x-api.onrender.com"
     print(f"service url: {url}")
     print(f"dashboard: {svc.get('dashboardUrl', '')}")
     if args.no_wait:

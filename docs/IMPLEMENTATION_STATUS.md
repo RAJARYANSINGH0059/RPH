@@ -45,8 +45,8 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 ## Deployment (2026-11-21)
 
 - GitHub: https://github.com/RAJARYANSINGH0059/RPH (`main`)
-- Render API: https://ps05x-api.onrender.com (service `srv-dc0noo67bikc73bbqjug`, Postgres `ps05x-db`), deployed via `scripts/render_deploy.py`; health checks 200.
-- Vercel web: https://ps05x-web.vercel.app (project `ps05x-web`), deployed via `vercel deploy --prod` after upgrading Next.js to 15.5.x (Vercel refuses 15.1.x as vulnerable).
+- Render API: https://ps05x-api.onrender.com (project RPH, service `rph`, `srv-dc0noo67bikc73bbqjug`, Postgres `rph-db`), deployed via `scripts/render_deploy.py`; health checks 200.
+- Vercel web: https://rph-ps05x.vercel.app and https://ps05x-web.vercel.app (project `rph`; `rph.vercel.app` is owned by another team), deployed via `vercel deploy --prod` after upgrading Next.js to 15.5.x (Vercel refuses 15.1.x as vulnerable).
 
 ## Access blockers
 

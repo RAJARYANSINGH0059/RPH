@@ -23,9 +23,9 @@ python scripts/render_deploy.py
 
 `scripts/render_deploy.py` uses the Render REST API with the key stored by `render login` (or `RENDER_API_KEY`). It is idempotent:
 
-- creates `ps05x-db` (PostgreSQL 16, free plan, Singapore) if missing and waits until it is available;
+- creates `rph-db` (PostgreSQL 16, free plan, Singapore) if missing and waits until it is available;
 - generates `JWT_SECRET` and three demo passwords once and stores them in `DEPLOY_SECRETS.local.md` (gitignored, never printed);
-- creates the `ps05x-api` web service from `https://github.com/RAJARYANSINGH0059/RPH` (root `apps/api`, build `pip install -r requirements.txt`, start `alembic upgrade head && uvicorn …`, health `/api/health/live`, auto-deploy on push) or, if it exists, updates its environment and triggers a deploy;
+- creates the `rph` web service from `https://github.com/RAJARYANSINGH0059/RPH` (root `apps/api`, build `pip install -r requirements.txt`, start `alembic upgrade head && uvicorn …`, health `/api/health/live`, auto-deploy on push) or, if it exists, updates its environment and triggers a deploy;
 - waits for the deploy to go live and prints the `/api/health/live` and `/api/health/ready` results.
 
 Re-run it any time to rotate nothing and redeploy; delete `DEPLOY_SECRETS.local.md` first if you want fresh secrets.
@@ -36,7 +36,7 @@ Re-run it any time to rotate nothing and redeploy; delete `DEPLOY_SECRETS.local.
 cd apps/web; vercel login
 ```
 ```powershell
-cd apps/web; vercel link --yes --project ps05x-web
+cd apps/web; vercel link --yes --project rph
 ```
 ```powershell
 cd apps/web; "https://ps05x-api.onrender.com" | vercel env add NEXT_PUBLIC_API_BASE_URL production
@@ -65,6 +65,10 @@ If you later connect the Vercel project to the GitHub repo for automatic deploys
 - [ ] Download PDF and JSON report
 - [ ] Restart the API service → cases still listed (Postgres persistence)
 - [ ] `/api/connectors/status` shows `not_configured` for unset providers
+
+## Names and URLs
+
+Render project **RPH** → service `rph` (URL stays `https://ps05x-api.onrender.com`; Render keeps the original subdomain after a rename) and database `rph-db`. Vercel project **rph** → `https://rph-ps05x.vercel.app` and `https://ps05x-web.vercel.app` (`rph.vercel.app` belongs to another team). Any `*.vercel.app` origin is allowed by the API's CORS regex.
 
 ## Notes and limits
 
