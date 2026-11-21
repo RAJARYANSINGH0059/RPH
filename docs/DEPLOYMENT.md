@@ -1,58 +1,81 @@
 # Deployment: GitHub → Render (API + Postgres) → Vercel (web)
 
-Everything below is configured in the repository. No deployment was performed from this build; the steps are manual.
+Two ways: **from your terminal** (what this repository's scripts do) or through the dashboards. Both use the same configuration files.
 
-## 0. Push to GitHub
+## A. From the terminal (Windows PowerShell)
+
+Prerequisites once per machine: Git with Credential Manager, Node 20+, Python 3.12, `npm i -g vercel`, `winget install Render.CLI`.
+
+### 1. Push
 
 ```powershell
-git remote add origin https://github.com/<you>/<repo>.git
+git push origin main
+```
+
+### 2. Render: Postgres + API
+
+```powershell
+render login
 ```
 ```powershell
-git push -u origin main
+python scripts/render_deploy.py
 ```
 
-CI (`.github/workflows/ci.yml`) runs backend tests, a PostgreSQL migration up/down, a 2-seed smoke benchmark, the model inference test, frontend lint/typecheck/build and gitleaks secret scanning.
+`scripts/render_deploy.py` uses the Render REST API with the key stored by `render login` (or `RENDER_API_KEY`). It is idempotent:
 
-## 1. Render: API + PostgreSQL (Blueprint)
+- creates `ps05x-db` (PostgreSQL 16, free plan, Singapore) if missing and waits until it is available;
+- generates `JWT_SECRET` and three demo passwords once and stores them in `DEPLOY_SECRETS.local.md` (gitignored, never printed);
+- creates the `ps05x-api` web service from `https://github.com/RAJARYANSINGH0059/RPH` (root `apps/api`, build `pip install -r requirements.txt`, start `alembic upgrade head && uvicorn …`, health `/api/health/live`, auto-deploy on push) or, if it exists, updates its environment and triggers a deploy;
+- waits for the deploy to go live and prints the `/api/health/live` and `/api/health/ready` results.
 
-1. Render dashboard → **New → Blueprint** → select the repo. `render.yaml` defines `ps05x-api` (Python web service, root `apps/api`) and `ps05x-db` (Postgres, free plan).
-2. Set the `sync: false` variables in the service's Environment tab:
-   - `CORS_ORIGINS` = your Vercel URL (e.g. `https://ps05x.vercel.app`), comma-separated if several.
-   - `DEMO_ANALYST_PASSWORD`, `DEMO_SUPERVISOR_PASSWORD`, `DEMO_ADMIN_PASSWORD` (strong values; blank = account not created).
-   - Optional: `ENABLE_RDAP=true`, `ENABLE_DNS=true`, `URLHAUS_AUTH_KEY`, `THREATFOX_AUTH_KEY`, `MISP_URL`, `MISP_KEY`.
-3. `DATABASE_URL` is injected from the database; `JWT_SECRET` is generated. The pre-deploy command runs `alembic upgrade head`.
-   - If Render's connection string starts with `postgres://`, SQLAlchemy 2 needs `postgresql+psycopg://`. Render's `connectionString` is `postgresql://…`, which SQLAlchemy accepts with the psycopg driver only if the URL says `postgresql+psycopg://`. **Set `DATABASE_URL` manually to the Internal Database URL with the scheme changed to `postgresql+psycopg://`** if the first deploy logs a driver error.
-4. Verify: `https://<service>.onrender.com/api/health/live` and `/api/health/ready` return 200; `/docs` shows the OpenAPI UI.
+Re-run it any time to rotate nothing and redeploy; delete `DEPLOY_SECRETS.local.md` first if you want fresh secrets.
 
-Alternative: the `apps/api/Dockerfile` builds a production image (migrations run at container start).
+### 3. Vercel: frontend
 
-Durable uploads: the free plan's filesystem is ephemeral. Synthetic demo cases regenerate on demand; for uploaded evidence attach a Render disk at `STORAGE_DIR` or implement the S3 adapter in `services/storage.py`.
+```powershell
+cd apps/web; vercel login
+```
+```powershell
+cd apps/web; vercel link --yes --project ps05x-web
+```
+```powershell
+cd apps/web; "https://ps05x-api.onrender.com" | vercel env add NEXT_PUBLIC_API_BASE_URL production
+```
+```powershell
+cd apps/web; vercel deploy --prod --yes
+```
 
-## 2. Vercel: frontend
+The API allows any `https://*.vercel.app` origin through `CORS_ORIGIN_REGEX`, so production and preview deployments work without editing the API after each Vercel deploy. For a custom domain add it to `CORS_ORIGINS` on Render.
 
-1. Vercel → **Add New Project** → import the repo → **Root Directory = `apps/web`** (framework auto-detected: Next.js).
-2. Environment variable: `NEXT_PUBLIC_API_BASE_URL` = `https://<service>.onrender.com` (no trailing slash).
-3. Deploy. Then add the Vercel URL to `CORS_ORIGINS` on Render and redeploy the API.
+If you later connect the Vercel project to the GitHub repo for automatic deploys, set **Root Directory = `apps/web`** in the Vercel project settings.
 
-## 3. Post-deploy acceptance checklist
+## B. From the dashboards
+
+- Render → New → Blueprint → select the repo; `render.yaml` defines the service and database. Set `DEMO_*_PASSWORD` values in the service environment.
+- Vercel → Add New Project → import the repo → Root Directory `apps/web` → env `NEXT_PUBLIC_API_BASE_URL` = the Render URL.
+
+## Post-deploy acceptance checklist
 
 - [ ] `/api/health/live` and `/api/health/ready` → 200
-- [ ] Sign in with a demo account
-- [ ] Synthetic Case Factory → generate (seed 42, messy, small) → 6 files parsed
+- [ ] Sign in with a demo account (credentials in `DEPLOY_SECRETS.local.md` on the machine that deployed)
+- [ ] Synthetic Case Factory → generate (seed 42, messy, small) → files parsed
 - [ ] Upload the generated CSV again into a new case → same SHA-256 and parse stats
 - [ ] Graph loads; click a SHARED_INFRASTRUCTURE edge → counter-evidence visible
 - [ ] Timeline shows ambiguous-date badges
 - [ ] Download PDF and JSON report
 - [ ] Restart the API service → cases still listed (Postgres persistence)
-- [ ] `/api/connectors/status` shows `not_configured` for unset providers (never `live` without credentials)
+- [ ] `/api/connectors/status` shows `not_configured` for unset providers
 
-## 4. Local development
+## Notes and limits
+
+- Free-plan web services sleep after inactivity; the first request after a pause takes 30–60 s. Free Postgres expires after 90 days unless upgraded.
+- Uploaded files live on the service's ephemeral disk; synthetic cases regenerate on demand. Attach a Render disk at `STORAGE_DIR` or implement the S3 adapter in `services/storage.py` for durable evidence storage.
+- Migrations run in the start command because free-plan services have no pre-deploy hook.
+
+## Local development
 
 ```powershell
-cd apps/api; pip install -r requirements.txt; copy ..\..\.env.example .env; python -m uvicorn app.main:app --reload --port 8000
-```
-```powershell
-cd apps/web; npm install; npm run dev
+powershell -ExecutionPolicy Bypass -File scripts\run_local.ps1
 ```
 
-Set `DEMO_ANALYST_PASSWORD` (and others) in `apps/api/.env` before starting the API; SQLite is used automatically and tables are created at startup.
+Requires `apps/api/.env` (copy `.env.example`, set `DEMO_*_PASSWORD`) and `apps/web/.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`.
