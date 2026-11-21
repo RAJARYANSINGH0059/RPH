@@ -35,3 +35,8 @@ Thumbs.db
 
 # local deployment secrets
 *.local.md
+
+/.vercel/
+
+.vercel
+.env*
