@@ -22,7 +22,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        sync: false          # set to your Vercel URL, e.g. https://ps05x.vercel.app
+        value: http://localhost:3000   # add your custom domain here if you use one
+      - key: CORS_ORIGIN_REGEX
+        value: ^https://[a-z0-9-]+\.vercel\.app$   # allows the Vercel production and preview URLs
       - key: STORAGE_DIR
         value: /opt/render/project/src/apps/api/data   # ephemeral on free plan; attach a disk or S3 for durable uploads
       - key: BENCHMARK_STORE_DIR

@@ -17,7 +17,7 @@ def _make_engine():
     kwargs: dict = {"pool_pre_ping": True}
     if settings.is_sqlite:
         kwargs["connect_args"] = {"check_same_thread": False}
-    engine = create_engine(settings.database_url, **kwargs)
+    engine = create_engine(settings.sqlalchemy_url, **kwargs)
     if settings.is_sqlite:
         @event.listens_for(engine, "connect")
         def _fk_on(dbapi_conn, _record):  # pragma: no cover

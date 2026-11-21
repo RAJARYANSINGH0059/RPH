@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Shell, { State } from "@/components/Shell";
+import { I } from "@/components/icons";
 import { api, fmtTime, getUser } from "@/lib/api";
 
 const STYLE: Record<string, string> = { live: "bg-[#e3f3f0] text-[#136f63]", configured: "bg-[#e7eff9] text-[#174a84]", not_configured: "bg-[#eef1f4] text-ink-muted", unavailable: "bg-[#fde8e8] text-[#8a1c1c]", mock: "bg-[#fdf3e0] text-[#8a5a0f]" };
+const MEANING: Record<string, string> = { live: "A real authenticated request succeeded in this process.", configured: "Credentials/flags are present; no request has been made yet.", not_configured: "Disabled or no key. The app works without it.", unavailable: "Configured but the last health check failed.", mock: "Offline synthetic adapter; never contacts a network." };
+const ABOUT: Record<string, string> = { rdap: "Current domain registration data (registrar, creation date). Current state only, not historical ownership.", dns: "Current A-record answers from the system resolver. Not passive/historical DNS.", urlhaus: "abuse.ch URLhaus malware-URL indicators (community key).", threatfox: "abuse.ch ThreatFox IOC look-ups (community key; IOCs expire after ~6 months).", misp: "Operator-run MISP instance via its Automation API.", synthetic_mock: "Technical observations shipped inside synthetic case bundles." };
 
 export default function SourcesPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -14,16 +17,23 @@ export default function SourcesPage() {
   useEffect(() => { api("/connectors/status").then(setRows).catch((e) => setError(e.message)); }, []);
   async function check() { setBusy(true); try { setRows(await api("/connectors/healthcheck", { method: "POST" })); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }
   return (
-    <Shell title="Data sources and settings">
+    <Shell title="Data sources and settings" subtitle="External look-ups are optional, server-side, host-allowlisted and fault-isolated." pageKey="sources"
+      actions={(role === "admin" || role === "supervisor") && <button className="btn" onClick={check} disabled={busy}>{busy ? "Checking…" : <><I.play /> Run health checks</>}</button>}>
       <State loading={!rows && !error} error={error}>
         <div className="space-y-4">
-          <div className="card text-sm">
-            <p>External connectors are optional, server-side only, host-allowlisted and fault-isolated. Synthetic mode and manual uploads work with every provider offline. A connector is shown as <strong>live</strong> only after a real authenticated request succeeded. Current DNS/RDAP lookups are labelled as current observations, never as historical evidence.</p>
-            {(role === "admin" || role === "supervisor") && <button className="btn mt-2" onClick={check} disabled={busy}>{busy ? "Checking…" : "Run health checks"}</button>}
-          </div>
-          <div className="card overflow-x-auto p-0"><table className="data"><thead><tr><th>Connector</th><th>Status</th><th>Provider</th><th>Detail</th><th>Checked</th></tr></thead>
-            <tbody>{rows?.map((r) => <tr key={r.name}><td className="font-medium">{r.name}</td><td><span className={`badge ${STYLE[r.status]}`}>{r.status.replace("_", " ")}</span></td><td className="text-xs">{r.provider}</td><td className="text-xs">{r.detail}</td><td className="text-xs">{fmtTime(r.last_checked)}</td></tr>)}</tbody></table></div>
-          <div className="card text-xs text-ink-muted"><div className="label">Configuration</div>Set <code>ENABLE_RDAP</code>, <code>ENABLE_DNS</code>, <code>URLHAUS_AUTH_KEY</code>, <code>THREATFOX_AUTH_KEY</code>, <code>MISP_URL</code>/<code>MISP_KEY</code> in the API environment. No NCRP/CFCFRMS/bank integration exists in this build; such integration requires written authorisation, documented APIs and test credentials.</div>
+          <div className="callout"><I.shield className="shrink-0 text-accent" /><div>Synthetic mode and manual uploads work with every provider offline. A connector shows <strong>live</strong> only after a real authenticated request succeeded. Current DNS/RDAP answers are labelled as current observations, never as historical evidence. There is no NCRP, CFCFRMS or bank integration in this build.</div></div>
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {rows?.map((r) => (
+              <li key={r.name} className="card">
+                <div className="flex items-start justify-between gap-2"><div className="font-semibold">{r.name.replace("_", " ")}</div><span className={`badge ${STYLE[r.status]}`}>{r.status.replace("_", " ")}</span></div>
+                <div className="mt-1 text-xs text-ink-muted">{r.provider}</div>
+                <p className="mt-2 text-sm">{ABOUT[r.name]}</p>
+                <div className="mt-2 rounded-lg bg-[#f6f8fa] p-2 text-xs"><div className="font-semibold">{MEANING[r.status]}</div><div className="text-ink-muted">{r.detail}</div></div>
+                <div className="mt-1 text-[11px] text-ink-muted">checked {fmtTime(r.last_checked)}</div>
+              </li>
+            ))}
+          </ul>
+          <div className="card text-xs text-ink-muted"><div className="label">How operators enable a connector</div>Set <code>ENABLE_RDAP=true</code>, <code>ENABLE_DNS=true</code>, <code>URLHAUS_AUTH_KEY</code>, <code>THREATFOX_AUTH_KEY</code> or <code>MISP_URL</code>/<code>MISP_KEY</code> in the API environment (Render dashboard or <code>apps/api/.env</code>) and restart. Keys never reach the browser.</div>
         </div>
       </State>
     </Shell>

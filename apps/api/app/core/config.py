@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = Field(default=480, alias="ACCESS_TOKEN_MINUTES")
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
+    # Optional regex for additional origins (e.g. Vercel preview deployments). Auth is bearer-token based, no cookies.
+    cors_origin_regex: str = Field(default="", alias="CORS_ORIGIN_REGEX")
     storage_dir: str = Field(default=str(API_ROOT / "data"), alias="STORAGE_DIR")
     max_upload_bytes: int = Field(default=25 * 1024 * 1024, alias="MAX_UPLOAD_BYTES")
     max_pdf_pages: int = Field(default=200, alias="MAX_PDF_PAGES")
@@ -52,6 +54,15 @@ class Settings(BaseSettings):
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        """Render/Heroku-style URLs use postgres:// or postgresql://; SQLAlchemy 2 + psycopg3 needs postgresql+psycopg://."""
+        url = self.database_url
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix) and not url.startswith("postgresql+"):
+                return "postgresql+psycopg://" + url[len(prefix):]
+        return url
 
 
 @lru_cache

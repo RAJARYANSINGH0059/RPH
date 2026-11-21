@@ -52,7 +52,8 @@ def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title=s.app_name, version=s.app_version, lifespan=lifespan,
                   description="Evidence-centred financial-cybercrime investigation workbench (PS05-X). Investigative aid; human verification required.")
-    app.add_middleware(CORSMiddleware, allow_origins=s.cors_origin_list, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=s.cors_origin_list, allow_origin_regex=s.cors_origin_regex or None,
+                       allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
     for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router):
         app.include_router(r, prefix="/api")
 
