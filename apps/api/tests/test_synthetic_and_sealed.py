@@ -60,7 +60,6 @@ def test_sealed_truth_not_reachable_from_analyst_api(client, analyst, admin, syn
 
 def test_synthetic_files_go_through_public_upload_pipeline(client, analyst, synthetic_case):
     """The factory calls ingest_upload; uploading the same bytes manually must produce identical parse results."""
-    cid = synthetic_case["case"]["id"]
     files, _, _ = build_bundle(Generator("phishing_to_mule", "adversarial", "small", 11))
     new_case = client.post("/api/cases", json={"title": "manual re-upload"}, headers=analyst).json()["id"]
     name = next(n for n in files if n.endswith(".csv"))

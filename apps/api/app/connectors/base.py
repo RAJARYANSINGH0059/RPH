@@ -81,7 +81,7 @@ def assert_safe_url(url: str, allowed_hosts: set[str]) -> None:
         raise ValueError(f"DNS resolution failed for {host}: {exc}")
     for info in infos:
         if is_blocked_ip(info[4][0]):
-            raise ValueError(f"Provider host resolves to a blocked address range")
+            raise ValueError("Provider host resolves to a blocked address range")
 
 
 class SafeHttp:
