@@ -194,8 +194,13 @@ class SyntheticRequest(BaseModel):
         "investment_scam",
         "qr_marketplace",
         "multi_victim_network",
+        "desert_mirage",
+        "identifier_rotation_campaign",
+        "commingled_funds",
+        "benign_lookalike",
+        "compromised_account",
     ] = "phishing_to_mule"
-    difficulty: Literal["clean", "messy", "high_noise", "adversarial"] = "messy"
+    difficulty: Literal["clean", "messy", "high_noise", "adversarial", "incomplete_evidence", "identifier_rotation", "temporal_conflict"] = "messy"
     size: Literal["small", "medium", "large"] = "small"
     seed: int = Field(default=42, ge=0, le=2**31 - 1)
     title: str | None = None

@@ -404,6 +404,28 @@ def _ingest_document(db: Session, case: Case, sf: SourceFile, file_entity: Entit
         if len(snippets) < 5:
             snippets.append({"locator": block.locator, "method": block.method, "text": block.text[:400],
                              "ocr": {k: v for k, v in ocr_meta.items() if k != "boxes"} if ocr_meta else None})
+    # payment instructions: upi:// payloads in text blocks (OCR-derived ones stay candidates) and QR codes in images
+    try:
+        from app.services import payment_bridge
+        from app.models import User as _User
+        uploader = db.get(_User, sf.uploaded_by)
+        uris = []
+        for block in res.blocks:
+            for m in re.finditer(r"upi://pay\?[^\s\"'<>]+", block.text, re.I):
+                uris.append((m.group(0), block))
+        for uri, block in uris[:10]:
+            pi = payment_bridge.register_instruction(db, case, uploader, raw_payload=uri, extraction_method="ocr_text" if block.method == "ocr" else "uri_text", source_file_id=sf.id,
+                                                     source_locator={**block.locator, "char_span": [block.text.find(uri), block.text.find(uri) + len(uri)]}, observed_at=None,
+                                                     confidence=int(round((block.confidence or 0) * 100)) if block.method == "ocr" and block.confidence is not None else None)
+            payment_bridge.match_instruction(db, case, pi)
+            found_total["payment_instruction"] = found_total.get("payment_instruction", 0) + 1
+        if kind in {"png", "jpeg"}:
+            for pi in payment_bridge.decode_image_instructions(db, case, uploader, sf, data):
+                payment_bridge.match_instruction(db, case, pi)
+                found_total["qr_payment_instruction"] = found_total.get("qr_payment_instruction", 0) + 1
+    except Exception as exc:  # never fail ingestion because of payload decoding
+        warnings.append(f"payment_payload_extraction_failed:{type(exc).__name__}")
+        log.exception("payment payload extraction failed")
     run.stats = {**run.stats, "indicators": found_total}
     preview = {"blocks": len(res.blocks), "pages": res.page_count, "indicators": found_total, "snippets": snippets, "warnings": warnings}
     return run, preview
@@ -454,6 +476,10 @@ def _ingest_technical_json(db: Session, case: Case, sf: SourceFile, file_entity:
         base_lims = [f"reported_by:{src_label}"]
         if observed is None:
             base_lims.append("observation_time_missing")
+        note_txt = str(obs.fields.get("note") or obs.extra.get("note") or "").lower()
+        if "current" in src_label.lower() or "current lookup" in note_txt or "current-only" in note_txt:
+            base_lims.append("current_lookup_not_historical")
+            ev.quality_flags = list(ev.quality_flags or []) + ["current_lookup_not_historical"]
         if obs.obs_type == "dns" and domain and ip:
             d_ent = get_or_create_entity(db, case.id, "domain", str(domain).lower(), None, None, observed)
             ip_ent = get_or_create_entity(db, case.id, "ip", str(ip), None, {"classification": indicators.ip_classification(str(ip))}, observed)

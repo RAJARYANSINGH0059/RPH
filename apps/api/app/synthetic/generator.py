@@ -11,11 +11,14 @@ import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-GENERATOR_VERSION = "0.3.0"
+GENERATOR_VERSION = "0.4.0"
 SCENARIO_VERSION = "1"
 
-SCENARIOS = ["phishing_to_mule", "fake_customer_care", "fake_loan_job", "investment_scam", "qr_marketplace", "multi_victim_network"]
-DIFFICULTIES = ["clean", "messy", "high_noise", "adversarial"]
+SCENARIOS = ["phishing_to_mule", "fake_customer_care", "fake_loan_job", "investment_scam", "qr_marketplace", "multi_victim_network",
+             "desert_mirage", "identifier_rotation_campaign", "commingled_funds", "benign_lookalike", "compromised_account"]
+DIFFICULTIES = ["clean", "messy", "high_noise", "adversarial", "incomplete_evidence", "identifier_rotation", "temporal_conflict"]
+# new difficulty profiles reuse a base chaos profile and add scenario flags
+BASE_DIFFICULTY = {"incomplete_evidence": "messy", "identifier_rotation": "messy", "temporal_conflict": "adversarial"}
 SIZES = {"small": (2, 3, 1), "medium": (4, 6, 2), "large": (8, 12, 4)}  # victims, mule accounts, exits
 SIZE_LIMITS = {"small": 60, "medium": 250, "large": 900}  # max transactions (safe upper bound)
 
@@ -33,6 +36,11 @@ SCENARIO_TEXT = {
     "investment_scam": ("joined a trading group that promised guaranteed daily returns", "investment deposit"),
     "qr_marketplace": ("tried to sell an item on a marketplace and the buyer sent a QR code to 'receive' payment", "marketplace QR payment"),
     "multi_victim_network": ("received a call about a parcel held by customs and was told to pay a release fee", "customs release fee"),
+    "desert_mirage": ("saw a verified earning programme advert, was asked to pay a registration fee and later a renewal fee", "registration fee"),
+    "identifier_rotation_campaign": ("was asked to pay a processing fee on a site that later moved to a new address", "processing fee"),
+    "commingled_funds": ("paid an advance for a rental that did not exist", "rental advance"),
+    "benign_lookalike": ("made ordinary purchases at a local shop (no fraud in this scenario)", "shop purchase"),
+    "compromised_account": ("paid a fee to a number that claimed to be from my bank", "verification fee"),
 }
 
 
@@ -78,6 +86,7 @@ class Generator:
         assert difficulty in DIFFICULTIES, difficulty
         assert size in SIZES, size
         self.scenario_type, self.difficulty, self.size, self.seed = scenario_type, difficulty, size, seed
+        self.base_difficulty = BASE_DIFFICULTY.get(difficulty, difficulty)
         self.rng = random.Random(f"{scenario_type}|{difficulty}|{size}|{seed}|{SCENARIO_VERSION}")
         self.t0 = datetime(2026, 3, 2, 9, 0, tzinfo=timezone.utc) + timedelta(days=self.rng.randint(0, 120))
 
@@ -104,11 +113,13 @@ class Generator:
         n_victims, n_mules, n_exits = SIZES[self.size]
         if self.scenario_type == "multi_victim_network":
             n_victims += 2
+        if self.scenario_type == "desert_mirage":
+            n_victims, n_mules = max(n_victims, 3), max(n_mules, 4)
         victims = [self._acct("victim") for _ in range(n_victims)]
         l1 = [self._acct("mule_l1") for _ in range(max(1, n_mules // 2))]
         l2 = [self._acct("mule_l2") for _ in range(max(1, n_mules - len(l1)))]
         exits = [self._acct("exit") for _ in range(n_exits)]
-        unrelated = [self._acct("unrelated") for _ in range(2 + (2 if self.difficulty in {"high_noise", "adversarial"} else 0))]
+        unrelated = [self._acct("unrelated") for _ in range(2 + (2 if self.base_difficulty in {"high_noise", "adversarial"} else 0))]
         accounts = victims + l1 + l2 + exits + unrelated
 
         txs: list[Tx] = []
@@ -124,7 +135,7 @@ class Generator:
             # hop 2: within 0.5–30 hours, possibly split
             t2 = t + timedelta(hours=self.rng.uniform(0.5, 30))
             m2 = l2[pid % len(l2)]
-            if self.rng.random() < 0.3 and len(l2) > 1:
+            if (self.rng.random() < 0.3 or (self.scenario_type in {"desert_mirage", "commingled_funds"} and pid == 0)) and len(l2) > 1:
                 a1 = amount // 2
                 r2a, r2b = self._ref(), self._ref()
                 m2b = l2[(pid + 1) % len(l2)]
@@ -145,7 +156,7 @@ class Generator:
                 chain_accounts += [mm.acct_no, ex.acct_no]
             paths.append({"path_id": pid, "victim": v.acct_no, "accounts": chain_accounts, "amount_minor": amount, "hops": 3})
         # background noise transactions for mules/unrelated (salary, groceries)
-        noise_n = min(limit - len(txs), 6 + 4 * len(accounts) if self.difficulty != "clean" else 4)
+        noise_n = min(limit - len(txs), 6 + 4 * len(accounts) if self.base_difficulty != "clean" else 4)
         for _ in range(max(0, noise_n)):
             a = self.rng.choice(accounts)
             b = self.rng.choice(unrelated)  # background payments go to unrelated merchants/people only
@@ -161,30 +172,32 @@ class Generator:
         cdn = [p for p in PROVIDERS if p[2]][0]
         shared_ip = self._ip()
         camp_domain = f"{self.rng.choice(['secure', 'kyc', 'refund', 'support', 'invest', 'parcel'])}-{self.rng.choice(['update', 'portal', 'care', 'desk', 'pay'])}{self.rng.randint(10, 99)}.test"
-        camp_ip = self._ip() if self.difficulty == "clean" else shared_ip
-        prov = self.rng.choice(PROVIDERS) if self.difficulty == "clean" else cdn
+        camp_ip = self._ip() if self.base_difficulty == "clean" else shared_ip
+        prov = self.rng.choice(PROVIDERS) if self.base_difficulty == "clean" else cdn
         domains.append({"domain": camp_domain, "role": "campaign", "ip": camp_ip, "provider": prov[0], "asn": prov[1], "is_cdn": prov[2],
                         "valid_from": (self.t0 - timedelta(days=5)).isoformat(), "valid_to": (self.t0 + timedelta(days=25)).isoformat()})
-        n_decoys = {"clean": 0, "messy": 1, "high_noise": 2, "adversarial": 3}[self.difficulty]
+        n_decoys = {"clean": 0, "messy": 1, "high_noise": 2, "adversarial": 3}[self.base_difficulty]
         for i in range(n_decoys):
             d = f"{self.rng.choice(['bakery', 'school', 'news', 'cricket', 'recipes', 'temple'])}-{self.rng.choice(['jaipur', 'udaipur', 'kota', 'ajmer'])}{self.rng.randint(1, 99)}.test"
             domains.append({"domain": d, "role": "decoy", "ip": shared_ip, "provider": cdn[0], "asn": cdn[1], "is_cdn": True,
                             "valid_from": (self.t0 - timedelta(days=400)).isoformat(), "valid_to": None})
-        if self.difficulty in {"high_noise", "adversarial"}:
+        if self.base_difficulty in {"high_noise", "adversarial"} or self.difficulty == "temporal_conflict":
             domains.append({"domain": camp_domain, "role": "campaign_stale", "ip": self._ip(), "provider": PROVIDERS[1][0], "asn": PROVIDERS[1][1], "is_cdn": False,
                             "valid_from": (self.t0 - timedelta(days=300)).isoformat(), "valid_to": (self.t0 - timedelta(days=200)).isoformat()})
         mules = [a.acct_no for a in l1 + l2 + exits]
         true_edges = [{"type": "TRANSFERRED_TO", "src": t.src.acct_no, "dst": t.dst.acct_no, "ref": t.ref, "amount_minor": t.amount_minor} for t in txs if t.hop > 0]
         true_edges.append({"type": "USES_PAYMENT_IDENTIFIER", "src": camp_domain, "dst": l1[0].vpa})
         false_edges = [{"type": "COMMON_OPERATOR", "src": camp_domain, "dst": d["domain"], "reason": "shared_cdn_ip_only"} for d in domains if d["role"] == "decoy"]
-        return Truth(accounts, txs, paths, domains, true_edges, false_edges, mules,
+        from app.synthetic import mirage
+        truth = Truth(accounts, txs, paths, domains, true_edges, false_edges, mules,
                      {"scenario_type": self.scenario_type, "difficulty": self.difficulty, "size": self.size, "seed": self.seed,
                       "scenario_version": SCENARIO_VERSION, "generator_version": GENERATOR_VERSION, "t0": self.t0.isoformat(),
                       "campaign_domain": camp_domain, "campaign_vpa": l1[0].vpa, "victims": [v.acct_no for v in victims]})
+        return mirage.shape_truth(self, truth)
 
     # ----- chaos
     def chaos_level(self) -> dict:
         return {"clean": dict(missing=0.0, ambig=0.0, ocr=0.0, dup=0.0, drift=False, balance=False, similar=False),
                 "messy": dict(missing=0.05, ambig=0.15, ocr=0.0, dup=0.04, drift=True, balance=True, similar=False),
                 "high_noise": dict(missing=0.12, ambig=0.3, ocr=0.08, dup=0.08, drift=True, balance=True, similar=True),
-                "adversarial": dict(missing=0.12, ambig=0.3, ocr=0.1, dup=0.08, drift=True, balance=True, similar=True)}[self.difficulty]
+                "adversarial": dict(missing=0.12, ambig=0.3, ocr=0.1, dup=0.08, drift=True, balance=True, similar=True)}[self.base_difficulty]

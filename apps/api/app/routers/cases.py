@@ -44,7 +44,7 @@ def list_cases(user: User = Depends(get_current_user), db: Session = Depends(get
 
 @router.post("", response_model=CaseOut, status_code=201)
 def create_case(body: CaseCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    c = Case(title=body.title, internal_ref=body.internal_ref, summary=body.summary, created_by=user.id)
+    c = Case(title=body.title, internal_ref=body.internal_ref, summary=body.summary, created_by=user.id, is_synthetic=(user.role == Role.demo_analyst))
     db.add(c)
     db.flush()
     db.add(CaseMembership(case_id=c.id, user_id=user.id, role_in_case="owner"))
@@ -90,6 +90,8 @@ async def upload(files: list[UploadFile] = File(...), case: Case = Depends(get_c
         out = ingest_upload(db, case, user, f.filename or "upload", data)
         results.append(UploadResult(file=_sf_out(out.source_file), parse_run=_run_out(out.parse_run) if out.parse_run else None, preview=out.preview))
     rebuild_derived(db, case)
+    from app.services import integrity
+    integrity.mark_provisional(db, case)
     db.commit()
     return results
 

@@ -51,6 +51,7 @@ class Role(str, enum.Enum):
     analyst = "analyst"
     supervisor = "supervisor"
     admin = "admin"
+    demo_analyst = "demo_analyst"  # one-click public visitor: synthetic workspace only, least privilege
 
 
 class EvidenceLevel(str, enum.Enum):
@@ -79,6 +80,9 @@ class User(Base):
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.analyst)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    # demo visitors: isolated workspace with an absolute expiry; cleaned up with their cases
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 
 
 class Case(Base):
@@ -360,3 +364,8 @@ class CooperationPack(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
     exported_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+
+
+# digital-twin increment tables (separate module to keep this file readable)
+from app.models.twin import (AnalysisBranch, AnalysisRun, CandidateRule, EvidenceRequest, Hypothesis,  # noqa: E402,F401
+                             IndependentReview, InvestigationEvent, PaymentInstruction, RoleReview)

@@ -58,6 +58,8 @@ def add_member(body: MemberRequest, case: Case = Depends(get_case_or_404), user:
     target = db.execute(select(User).where(User.email == body.email.lower())).scalar_one_or_none()
     if target is None:
         raise HTTPException(404, "User not found")
+    if target.is_demo and not case.is_synthetic:
+        raise HTTPException(403, "Demo visitors can only be members of synthetic cases")
     existing = db.execute(select(CaseMembership).where(CaseMembership.case_id == case.id, CaseMembership.user_id == target.id)).scalar_one_or_none()
     if existing is None:
         db.add(CaseMembership(case_id=case.id, user_id=target.id, role_in_case=body.role_in_case))

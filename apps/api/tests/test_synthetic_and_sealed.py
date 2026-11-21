@@ -33,7 +33,10 @@ def test_all_scenarios_and_difficulties_generate():
     for s in SCENARIOS:
         for d in DIFFICULTIES:
             files, truth, _ = build_bundle(Generator(s, d, "small", 1))
-            assert "complaint.pdf" in files and truth.paths
+            if s == "benign_lookalike":
+                assert truth.params.get("benign") and not truth.paths and "shop_owner_note.txt" in files  # no fraud, no complaint by design
+            else:
+                assert "complaint.pdf" in files and truth.paths
 
 
 def test_sealed_truth_not_reachable_from_analyst_api(client, analyst, admin, synthetic_case):

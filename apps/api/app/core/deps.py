@@ -26,6 +26,13 @@ def get_current_user(
     user = db.get(User, payload.get("sub"))
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
+    if user.expires_at is not None:
+        from datetime import datetime, timezone
+        if user.expires_at <= datetime.now(timezone.utc):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Demo session expired")
+    if payload.get("scope") and payload.get("scope") != "full":
+        # short-lived scoped tokens (upload/download) are only valid on the matching routes; the router checks `request.state.scope`
+        user._token_scope = payload.get("scope")  # type: ignore[attr-defined]
     return user
 
 
@@ -39,6 +46,8 @@ def require_roles(*roles: Role):
 
 
 def user_can_access_case(db: Session, user: User, case: Case) -> bool:
+    if user.role == Role.demo_analyst and not case.is_synthetic:
+        return False  # demo visitors never see non-synthetic cases, even if someone added them as a member
     if user.role == Role.admin:
         return True
     if case.created_by == user.id:

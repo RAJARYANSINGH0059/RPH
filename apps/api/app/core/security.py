@@ -24,14 +24,15 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, *, minutes: int | None = None, scope: str = "full") -> str:
     s = get_settings()
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
         "role": role,
+        "scope": scope,
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=s.access_token_minutes)).timestamp()),
+        "exp": int((now + timedelta(minutes=minutes if minutes is not None else s.access_token_minutes)).timestamp()),
     }
     return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)
 
