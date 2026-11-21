@@ -21,7 +21,7 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 | §12 Benchmark (4 configurations, 10 metrics) | Smoke benchmark done (4 seeds) | `tests/benchmark`, `docs/BENCHMARK.md` |
 | §13 UI (6 nav items, 11 screens, light theme, states, legend) | Done | `apps/web/app` |
 | §14 Security (Argon2id, JWT, RBAC, case IDOR checks, magic bytes, immutable originals, audit) | Done | `core/`, `routers/` |
-| §15 GitHub/Vercel/Render config, CI | Done (deploy itself is manual per user instruction) | `render.yaml`, `apps/web/vercel.json`, `.github/workflows/ci.yml`, `apps/api/Dockerfile` |
+| §15 GitHub/Vercel/Render config, CI, live deployment | Done (see Deployment below) | `render.yaml`, `apps/web/vercel.json`, `.github/workflows/ci.yml`, `apps/api/Dockerfile` |
 | §17 Tests | 38 backend tests + 3 inference tests + benchmark runner | `apps/api/tests`, `tests/e2e` |
 | Reports (PDF/JSON/CSV with disclaimer) | Done | `app/reports` |
 
@@ -39,6 +39,6 @@ None in the repository. Installed tooling reused: Python 3.12 (FastAPI, SQLAlche
 
 - The folder initially sat inside a stray, commit-less git repository rooted at the user's home directory (`C:/Users/rajar/.git`). A dedicated repository was initialised in the project folder on `main` so that only project files are tracked; the stray home-directory repository was left untouched for the user to remove.
 
-- Vercel CLI present but not authenticated; no `gh`, `render`, `docker`, `psql`. Per the user's instruction, push and deployment are manual.
+- `gh`, `docker` and `psql` are not installed. Render CLI was installed with winget; both Render and Vercel CLIs were authenticated by the user through browser device flows, and deployment ran from the terminal.
 - No Tesseract binary → OCR fallback inactive (flagged, not silent).
 - Official PS05 expanded brief/sample data not re-checked in a browser during this run (blueprint §2.1 still applies).
