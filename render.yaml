@@ -1,0 +1,45 @@
+# Render Blueprint: FastAPI backend + PostgreSQL. Frontend is deployed on Vercel (see docs/DEPLOYMENT.md).
+services:
+  - type: web
+    name: ps05x-api
+    runtime: python
+    rootDir: apps/api
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health/live
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ps05x-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false          # set to your Vercel URL, e.g. https://ps05x.vercel.app
+      - key: STORAGE_DIR
+        value: /opt/render/project/src/apps/api/data   # ephemeral on free plan; attach a disk or S3 for durable uploads
+      - key: BENCHMARK_STORE_DIR
+        value: /opt/render/project/src/apps/api/data/sealed
+      - key: DEMO_ANALYST_PASSWORD
+        sync: false          # set in Render dashboard; never commit
+      - key: DEMO_SUPERVISOR_PASSWORD
+        sync: false
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false
+      - key: ENABLE_RDAP
+        value: "false"
+      - key: ENABLE_DNS
+        value: "false"
+
+databases:
+  - name: ps05x-db
+    plan: free
+    databaseName: ps05x
+    user: ps05x

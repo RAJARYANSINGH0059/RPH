@@ -1,0 +1,34 @@
+# secrets / env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+apps/api/ps05x.db
+apps/api/data/
+*.db
+
+# node / next
+node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# ml / benchmark outputs that are large or regenerable
+ml/data/
+tests/benchmark/results/per_case_*.json
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

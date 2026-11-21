@@ -1,0 +1,132 @@
+{
+ "_watermark": "SYNTHETIC DATA - FICTIONAL - RAJASTHAN POLICE HACKATHON 2026 PS05 DEMO - NOT A REAL BANK RECORD",
+ "observations": [
+  {
+   "type": "dns",
+   "domain": "support-portal61.test",
+   "ip": "192.0.2.171",
+   "ttl": 300,
+   "observed_at": "2026-02-27T09:00:00+00:00",
+   "valid_from": "2026-02-25T09:00:00+00:00",
+   "valid_to": "2026-03-27T09:00:00+00:00",
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "support-portal61.test",
+   "ip": "192.0.2.171",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2026-02-27T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "bakery-udaipur68.test",
+   "ip": "192.0.2.171",
+   "ttl": 300,
+   "observed_at": "2025-02-02T09:00:00+00:00",
+   "valid_from": "2025-01-26T09:00:00+00:00",
+   "valid_to": null,
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "bakery-udaipur68.test",
+   "ip": "192.0.2.171",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2025-02-02T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "school-ajmer99.test",
+   "ip": "192.0.2.171",
+   "ttl": 300,
+   "observed_at": "2025-02-02T09:00:00+00:00",
+   "valid_from": "2025-01-26T09:00:00+00:00",
+   "valid_to": null,
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "school-ajmer99.test",
+   "ip": "192.0.2.171",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2025-02-02T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "school-udaipur99.test",
+   "ip": "192.0.2.171",
+   "ttl": 300,
+   "observed_at": "2025-01-29T09:00:00+00:00",
+   "valid_from": "2025-01-26T09:00:00+00:00",
+   "valid_to": null,
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "school-udaipur99.test",
+   "ip": "192.0.2.171",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2025-01-29T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "support-portal61.test",
+   "ip": "192.0.2.233",
+   "ttl": 3600,
+   "observed_at": "2025-05-13T09:00:00+00:00",
+   "valid_from": "2025-05-06T09:00:00+00:00",
+   "valid_to": "2025-08-14T09:00:00+00:00",
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "hosting",
+   "domain": "support-portal61.test",
+   "ip": "192.0.2.233",
+   "provider": "DemoHost VPS",
+   "asn": 64501,
+   "observed_at": "2025-05-13T09:00:00+00:00",
+   "multi_tenant": false,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "url",
+   "url": "https://support-portal61.test/login",
+   "observed_at": "2026-03-02T09:00:00+00:00",
+   "source": "complaint_screenshot_fixture"
+  },
+  {
+   "type": "rdap",
+   "domain": "support-portal61.test",
+   "registrar": "Example Registrar (fictional)",
+   "created": "2026-02-23T09:00:00+00:00",
+   "observed_at": "2026-03-05T09:00:00+00:00",
+   "source": "synthetic_rdap_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "bakery-udaipur68.test",
+   "ip": "192.0.2.171",
+   "observed_at": "2025-06-25T09:00:00+00:00",
+   "source": "unverified_forum_post_fixture",
+   "note": "conflicting / stale observation planted for adversarial testing"
+  }
+ ]
+}

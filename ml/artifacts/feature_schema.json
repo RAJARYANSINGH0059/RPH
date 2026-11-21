@@ -1,0 +1,25 @@
+{
+ "features": [
+  "in_degree",
+  "out_degree",
+  "tx_in",
+  "tx_out",
+  "total_in_minor",
+  "total_out_minor",
+  "out_in_ratio",
+  "median_holding_hours",
+  "unique_counterparties",
+  "velocity_tx_per_day",
+  "amount_concentration",
+  "fan_in",
+  "fan_out",
+  "missing_field_ratio",
+  "duplicate_count",
+  "time_uncertain_ratio"
+ ],
+ "dataset_version": "1",
+ "model_name": "random_forest",
+ "threshold": 0.5,
+ "sha256": "db1ce406622a3d4d86df312a0336258b772026e43ff8504f40aed96917485e8e",
+ "output_semantics": "triage score; requires human review; not a probability of guilt"
+}

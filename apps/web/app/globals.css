@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+body { @apply bg-[#f6f8fa] text-ink antialiased; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { @apply outline-none ring-2 ring-accent ring-offset-2; }
+.card { @apply rounded-lg border border-line bg-white p-4 shadow-sm; }
+.btn { @apply inline-flex items-center gap-2 rounded-md border border-transparent bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50; }
+.btn-secondary { @apply inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink hover:bg-accent-light disabled:opacity-50; }
+.input { @apply w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm; }
+.label { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-ink-muted; }
+.badge { @apply inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
+table.data { @apply w-full border-collapse text-sm; }
+table.data th { @apply border-b border-line bg-[#f1f4f7] px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted; }
+table.data td { @apply border-b border-line px-2 py-1.5 align-top; }

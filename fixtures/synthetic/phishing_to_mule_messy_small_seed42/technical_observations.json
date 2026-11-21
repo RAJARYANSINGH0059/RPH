@@ -1,0 +1,61 @@
+{
+ "_watermark": "SYNTHETIC DATA - FICTIONAL - RAJASTHAN POLICE HACKATHON 2026 PS05 DEMO - NOT A REAL BANK RECORD",
+ "observations": [
+  {
+   "type": "dns",
+   "domain": "secure-desk94.test",
+   "ip": "198.51.100.39",
+   "ttl": 300,
+   "observed_at": "2026-03-07T09:00:00+00:00",
+   "valid_from": "2026-02-28T09:00:00+00:00",
+   "valid_to": "2026-03-30T09:00:00+00:00",
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "secure-desk94.test",
+   "ip": "198.51.100.39",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2026-03-07T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "dns",
+   "domain": "recipes-udaipur30.test",
+   "ip": "198.51.100.39",
+   "ttl": 300,
+   "observed_at": "2025-02-06T09:00:00+00:00",
+   "valid_from": "2025-01-29T09:00:00+00:00",
+   "valid_to": null,
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "recipes-udaipur30.test",
+   "ip": "198.51.100.39",
+   "provider": "SampleCloud CDN",
+   "asn": 64500,
+   "observed_at": "2025-02-06T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "url",
+   "url": "https://secure-desk94.test/login",
+   "observed_at": "2026-03-05T09:00:00+00:00",
+   "source": "complaint_screenshot_fixture"
+  },
+  {
+   "type": "rdap",
+   "domain": "secure-desk94.test",
+   "registrar": "Example Registrar (fictional)",
+   "created": "2026-02-26T09:00:00+00:00",
+   "observed_at": "2026-03-08T09:00:00+00:00",
+   "source": "synthetic_rdap_fixture"
+  }
+ ]
+}

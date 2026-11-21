@@ -1,0 +1,21 @@
+{
+ "synthetic": true,
+ "watermark": "SYNTHETIC DATA - FICTIONAL - RAJASTHAN POLICE HACKATHON 2026 PS05 DEMO - NOT A REAL BANK RECORD",
+ "scenario_type": "investment_scam",
+ "difficulty": "clean",
+ "size": "small",
+ "seed": 7,
+ "scenario_version": "1",
+ "generator_version": "0.3.0",
+ "files": [
+  "complaint.pdf",
+  "screenshot.png",
+  "statement_0645_victim.csv",
+  "statement_1099_mule_l1.csv",
+  "statement_1950_victim.csv",
+  "technical_observations.json"
+ ],
+ "transactions_generated": 10,
+ "accounts_generated": 8,
+ "note": "Ground truth is sealed in the benchmark store and is not available through case APIs."
+}

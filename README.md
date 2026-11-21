@@ -1,0 +1,71 @@
+# PS05-X — Evidence-Centred Financial-Cybercrime Investigation Workbench
+
+Prototype for **Rajasthan Police Cyber Security Hackathon 2026, PS05** (Financial Crime Infrastructure & Money-Trail Analysis). An investigator uploads bank statements, UPI-like exports, complaint documents and cyber-infrastructure indicators; the workbench parses them with exact source locators, reconstructs multi-hop fund paths, builds a time-aware evidence graph, and forces every cross-domain relationship to carry **source, locator, time validity, method, limitations and counter-evidence**. A Synthetic Case Factory generates fresh, reproducible, deliberately messy cases with sealed ground truth and pushes the files through the same upload pipeline a user would.
+
+> **SYNTHETIC DATA · NO LIVE POLICE/BANK CONNECTION · Investigative analysis aid; authorised human verification required.**
+> Not "world first", not court-proof, not integrated with NCRP/CFCFRMS/banks, not trained on real data. See `docs/LIMITATIONS.md`.
+
+## Monorepo
+
+```
+apps/api        FastAPI + SQLAlchemy + Alembic + NetworkX + scikit-learn (Render)
+apps/web        Next.js 15 + TypeScript + Tailwind + Cytoscape.js + Recharts (Vercel)
+ml/             training/dataset.py, training/train.py, evaluation/inference.py, artifacts/ (checksummed model)
+tests/          benchmark/run_benchmark.py, e2e/test_model_inference.py
+docs/           ARCHITECTURE, DEPLOYMENT, DEMO_SCRIPT, LIMITATIONS, MODEL_CARD, BENCHMARK, IMPLEMENTATION_STATUS, CREDIT_BUDGET_PREFLIGHT
+render.yaml     Render blueprint (API + Postgres) · apps/web/vercel.json · .github/workflows/ci.yml · .env.example
+```
+
+## Quick start (local)
+
+Backend (SQLite, tables auto-created in development):
+
+```powershell
+cd apps/api; pip install -r requirements.txt
+```
+```powershell
+cd apps/api; $env:DEMO_ANALYST_PASSWORD="choose-a-password"; $env:DEMO_ADMIN_PASSWORD="choose-another"; python -m uvicorn app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```powershell
+cd apps/web; npm install; npm run dev
+```
+
+Open http://localhost:3000, sign in as `analyst@demo.local` with the password you set, then **Synthetic Case Factory → Generate**. Demo accounts exist only when their `DEMO_*_PASSWORD` variable is set; nothing is hard-coded. Copy `.env.example` to `apps/api/.env` for persistent settings.
+
+## Tests, training, benchmark
+
+| What | Command | Result in this build |
+|---|---|---|
+| Backend unit/integration/security/determinism/migration | `cd apps/api; python -m pytest -q` | 38 passed |
+| Model inference (checksum-verified artefact) | `python -m pytest tests/e2e -q` | 3 passed |
+| Frontend | `cd apps/web; npm run lint; npm run typecheck; npm run build` | clean, build OK |
+| Train triage model (scenario-level split) | `python ml/training/train.py --seeds 12` | random forest retained: test F1 0.789 vs rules 0.503 |
+| Smoke benchmark (4 configs × 96 cases) | `python tests/benchmark/run_benchmark.py --seeds 4` | 0 false links with safeguards vs 144 without |
+
+Details: `docs/MODEL_CARD.md`, `docs/BENCHMARK.md`.
+
+## What the verification layer guarantees
+
+- Money is integer paise; raw strings and cell/row/page/JSON-path locators are kept for every field.
+- Ambiguous dates (`03/04/26`) stay flagged; duplicates are flagged, never dropped; missing values are never invented.
+- Shared IP / CDN / ASN / registrar alone yields a **candidate** `SHARED_INFRASTRUCTURE` edge with counter-evidence, never common ownership.
+- Similar names yield a candidate edge; entities are never merged without an identifier bridge.
+- A VPA in one statement and an account number in another are bridged only by matching reference + amount (derived `SAME_ACCOUNT_IDENTIFIER`).
+- DNS/hosting observations outside the transaction window are marked **stale**; connector lookups are labelled *current, not historical*.
+- Promoting a candidate relationship requires a supervisor; every review and export is in the append-only audit log.
+- Sealed synthetic ground truth is never served by case APIs (tested).
+
+## Security notes
+
+Argon2id password hashing, HS256 JWT (set a ≥32-byte `JWT_SECRET`), role checks, case-level access on every route (non-members get 404), magic-byte file-type checks, size limits, random storage keys, immutable originals with SHA-256, SSRF guard on connectors (https-only allowlist, blocked private/metadata ranges, no redirects, size/content-type limits), uploads never executed or opened in a browser, no bank data sent to any LLM.
+
+## Deployment
+
+See `docs/DEPLOYMENT.md`: push to GitHub → Render Blueprint (`render.yaml`) → Vercel project with root `apps/web` and `NEXT_PUBLIC_API_BASE_URL` → set `CORS_ORIGINS` and demo passwords on Render.
+
+## Connector status vocabulary
+
+`not_configured` · `configured` · `unavailable` · `mock` · `live` (only after a real authenticated request succeeds). In this build all external providers are `not_configured`; synthetic mode needs none.

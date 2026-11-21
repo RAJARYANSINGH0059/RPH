@@ -1,0 +1,40 @@
+{
+ "_watermark": "SYNTHETIC DATA - FICTIONAL - RAJASTHAN POLICE HACKATHON 2026 PS05 DEMO - NOT A REAL BANK RECORD",
+ "observations": [
+  {
+   "type": "dns",
+   "domain": "parcel-portal61.test",
+   "ip": "203.0.113.98",
+   "ttl": 300,
+   "observed_at": "2026-03-13T09:00:00+00:00",
+   "valid_from": "2026-03-03T09:00:00+00:00",
+   "valid_to": "2026-04-02T09:00:00+00:00",
+   "resolver": "synthetic-resolver.test",
+   "source": "synthetic_passive_dns_fixture"
+  },
+  {
+   "type": "cdn",
+   "domain": "parcel-portal61.test",
+   "ip": "203.0.113.98",
+   "provider": "TestNet Shared Hosting",
+   "asn": 64502,
+   "observed_at": "2026-03-13T09:00:00+00:00",
+   "multi_tenant": true,
+   "source": "synthetic_hosting_fixture"
+  },
+  {
+   "type": "url",
+   "url": "https://parcel-portal61.test/login",
+   "observed_at": "2026-03-08T09:00:00+00:00",
+   "source": "complaint_screenshot_fixture"
+  },
+  {
+   "type": "rdap",
+   "domain": "parcel-portal61.test",
+   "registrar": "Example Registrar (fictional)",
+   "created": "2026-03-01T09:00:00+00:00",
+   "observed_at": "2026-03-11T09:00:00+00:00",
+   "source": "synthetic_rdap_fixture"
+  }
+ ]
+}
