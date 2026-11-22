@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.services import ml_triage
+from app.services import counts, ml_triage
 from app.graph import engine
 from app.models import (AnalystReview, Case, CounterEvidence, Entity, EvidenceItem, ParseRun, Relationship,
                         RelationshipEvidence, SourceFile, Transaction)
@@ -88,6 +88,7 @@ def build_report(db: Session, case: Case) -> dict:
                                    "counterparty": t.counterparty_ref, "reference": t.external_reference, "channel": t.channel,
                                    "warnings": t.warnings, "evidence_item_id": t.evidence_item_id,
                                    "locator": ev_items[t.evidence_item_id].source_locator if t.evidence_item_id in ev_items else None} for t in txs[:500]]},
+        "counts": counts.case_counts(db, case),  # canonical; the tables below are presentations of the same data
         "fund_paths": paths,
         "account_triage": [{"account": a, **triage[a], "ml_triage": ml_triage.score(feats[a]), "features": feats[a]} for a in sorted(triage, key=lambda a: -triage[a]["heuristic_score"])],
         "ml_model": ml_triage.status(),

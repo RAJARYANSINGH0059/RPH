@@ -1,11 +1,12 @@
 """FastAPI dependencies: current user, role checks, case-level authorisation."""
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.scopes import KNOWN_SCOPES, describe, scope_permits
 from app.core.security import decode_token
 from app.db.session import get_db
 from app.models import Case, CaseMembership, Role, User
@@ -14,9 +15,14 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User:
+    """Authenticate the bearer token and enforce its scope against the route being called.
+
+    Default-deny: a token whose scope is not `full` reaches only the routes listed in `app.core.scopes`, so a new
+    endpoint is closed to scoped upload/download tokens until someone adds it there deliberately."""
     if creds is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
     try:
@@ -30,10 +36,25 @@ def get_current_user(
         from datetime import datetime, timezone
         if user.expires_at <= datetime.now(timezone.utc):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Demo session expired")
-    if payload.get("scope") and payload.get("scope") != "full":
-        # short-lived scoped tokens (upload/download) are only valid on the matching routes; the router checks `request.state.scope`
-        user._token_scope = payload.get("scope")  # type: ignore[attr-defined]
+    scope = payload.get("scope") or "full"
+    if scope not in KNOWN_SCOPES:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown token scope")
+    route = request.scope.get("route")
+    template = getattr(route, "path", None)
+    if not scope_permits(scope, request.method, template):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"Token scope '{scope}' is not valid on this endpoint. {describe(scope)}")
+    request.state.token_scope = scope
     return user
+
+
+def require_token_scope(*scopes: str):
+    """Explicit per-route scope requirement, for routes that must only ever be reached by a particular token kind."""
+    def _dep(request: Request, user: User = Depends(get_current_user)) -> User:
+        if getattr(request.state, "token_scope", "full") not in scopes:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "This endpoint requires a token of scope: " + ", ".join(sorted(scopes)))
+        return user
+
+    return _dep
 
 
 def require_roles(*roles: Role):

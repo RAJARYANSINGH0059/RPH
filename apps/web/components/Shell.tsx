@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { I, type IconName } from "@/components/icons";
 import { api, getCaseContext, getUser, isDemo, setCaseContext, signOut, warmApi, type User } from "@/lib/api";
+import { useApiState } from "@/lib/apiState";
 import { EVIDENCE_LEVEL_HELP, GUIDE, WALKTHROUGH } from "@/lib/guide";
 import { NAV, UTILITY, hrefFor, matchRoute, type NavChild, type NavGroup } from "@/lib/nav";
 export { State, LevelBadge, Stat, Copyable } from "@/components/ui";
@@ -91,6 +92,22 @@ function iconForChild(child: NavChild, group?: NavGroup): IconName {
   return (group?.icon as IconName) || "file";
 }
 
+/** API readiness in the top bar: the state, how long it has been trying, and a retry that leaves the page untouched. */
+function ApiStatePill() {
+  const api = useApiState();
+  const tone = api.state === "ready" ? "border-ok/40 text-ok"
+    : api.state === "degraded" || api.state === "waking" || api.state === "checking" ? "border-saffron/50 text-warn"
+    : "border-danger/40 text-danger";
+  const canRetry = api.state === "timed_out" || api.state === "unavailable";
+  return (
+    <span className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold sm:inline-flex ${tone}`} role="status" title={api.description}>
+      <span aria-hidden>{api.state === "ready" ? "●" : api.state === "degraded" ? "◐" : canRetry ? "○" : "◌"}</span>
+      {api.label}{api.elapsed >= 3 ? ` ${api.elapsed}s` : ""}
+      {canRetry && <button className="underline" onClick={api.retry}>Retry</button>}
+    </span>
+  );
+}
+
 export default function Shell({ children, caseId, caseTitle, synthetic, uploaded, title, subtitle, pageKey, actions, primary, wide }: ShellProps) {
   const path = usePathname();
   const router = useRouter();
@@ -102,7 +119,6 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [q, setQ] = useState("");
   const [ctx, setCtx] = useState<{ id: string; title: string } | null>(null);
-  const [health, setHealth] = useState<"checking" | "ready" | "down">("checking");
   const [cases, setCases] = useState<{ id: string; title: string; is_synthetic: boolean }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
   const route = useMemo(() => matchRoute(path), [path]);
@@ -113,8 +129,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
     setUser(u);
     try { if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcome(true); } catch { /* ignore */ }
     try { const s = window.localStorage.getItem(SIDEBAR_KEY); if (s) { const j = JSON.parse(s); setCollapsed(!!j.collapsed); setOpen((o) => ({ ...(j.open || {}), ...o })); } } catch { /* ignore */ }
-    // Served from the shared read cache: the shell mounts on every page, so these must not be two fresh round trips per click.
-    api("/health/ready").then(() => setHealth("ready")).catch(() => setHealth("down"));
+    // Served from the shared read cache: the shell mounts on every page, so this must not be a fresh round trip per click.
     api("/cases").then((cs) => setCases(cs.slice(0, 40))).catch(() => undefined);
   }, [router]);
   useEffect(() => { setDrawer(false); }, [path]);
@@ -257,7 +272,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
               </nav>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`hidden items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold sm:inline-flex ${health === "ready" ? "border-ok/40 text-ok" : health === "down" ? "border-danger/40 text-danger" : "border-line-strong text-ink-muted"}`} title="API connection health"><span aria-hidden>{health === "ready" ? "●" : health === "down" ? "○" : "◌"}</span>{health === "ready" ? "API ready" : health === "down" ? "API unreachable" : "Checking API"}</span>
+              <ApiStatePill />
               {(demo || synthetic || uploaded) && <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white ${demo || synthetic ? "bg-terracotta" : "bg-ink"}`}>{demo ? "Synthetic demo" : synthetic ? "Synthetic" : "Uploaded evidence"}</span>}
               {user && <div className="hidden items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] lg:flex" title={user.email}><I.user width={13} height={13} /><span className="max-w-[120px] truncate font-medium">{user.display_name}</span><span className="rounded bg-panel px-1 text-[10px] font-bold uppercase">{user.role.replace("_", " ")}</span></div>}
             </div>

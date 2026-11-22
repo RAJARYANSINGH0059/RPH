@@ -70,7 +70,6 @@ export default function OverviewPage() {
     files: a.files + h.files_count, tx: a.tx + h.transactions_count, rels: a.rels + h.relationships_count, review: a.review + h.findings_awaiting_review,
   }), { files: 0, tx: 0, rels: 0, review: 0 });
   const priorities = (cases || []).flatMap((c: any) => prioritiesFor(c, heads[c.id]));
-  const decisions = priorities.filter((p) => p.tone === "warn");
 
   return (
     <Shell title="Investigation Command Centre" subtitle="An operational overview of cases, evidence gaps and the investigative decisions still waiting on a person." pageKey="overview"

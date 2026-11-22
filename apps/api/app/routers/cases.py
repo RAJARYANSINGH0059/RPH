@@ -8,11 +8,11 @@ from app.core.deps import get_case_or_404, get_current_user
 from app.db.session import get_db
 from app.graph import engine
 from app.graph.rules import rebuild_derived
-from app.models import (AuditEvent, Case, CaseMembership, Entity, EvidenceLevel, ParseRun, Relationship, Role, SourceFile,
+from app.models import (AuditEvent, Case, CaseMembership, ParseRun, Role, SourceFile,
                         Transaction, User)
 from app.schemas import (CaseCreate, CaseOut, CaseOverview, ColumnMappingRequest, ParseRunOut, PathsResponse, SourceFileOut,
                          TimelineEvent, TransactionOut, UploadResult)
-from app.services import audit, ml_triage
+from app.services import audit, counts, ml_triage
 from app.services.ingestion import ingest_upload
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -56,16 +56,20 @@ def create_case(body: CaseCreate, user: User = Depends(get_current_user), db: Se
 
 @router.get("/{case_id}", response_model=CaseOverview)
 def case_overview(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
-    cnt = lambda model: db.execute(select(func.count()).select_from(model).where(model.case_id == case.id)).scalar() or 0  # noqa: E731
-    indicators = db.execute(select(func.count()).select_from(Entity).where(Entity.case_id == case.id, Entity.entity_type.in_(["url", "domain", "ip", "asn", "hosting_provider"]))).scalar() or 0
-    warnings = sum(len(r.warnings or []) for r in db.execute(select(ParseRun).where(ParseRun.case_id == case.id)).scalars())
-    awaiting = db.execute(select(func.count()).select_from(Relationship).where(Relationship.case_id == case.id,
-                          Relationship.evidence_level.in_([EvidenceLevel.candidate, EvidenceLevel.stale, EvidenceLevel.contradicted]),
-                          Relationship.review_status == "unreviewed")).scalar() or 0
+    # Every number comes from the canonical counts service, so the overview cannot drift from the graph, the results
+    # page, the reports or the exports. Paths are skipped here because reconstructing them is the expensive part.
+    c = counts.case_counts(db, case, include_paths=False)
     last = db.execute(select(func.max(AuditEvent.created_at)).where(AuditEvent.case_id == case.id)).scalar()
-    return CaseOverview(**_case_out(case).model_dump(), files_count=cnt(SourceFile), transactions_count=cnt(Transaction), entities_count=cnt(Entity),
-                        relationships_count=cnt(Relationship), indicators_count=indicators, unresolved_warnings=warnings,
-                        findings_awaiting_review=awaiting, last_activity=last)
+    return CaseOverview(**_case_out(case).model_dump(), files_count=c["files"]["total"], transactions_count=c["transactions"]["total"],
+                        entities_count=c["entities"]["total"], relationships_count=c["relationships"]["total"],
+                        indicators_count=c["indicators"]["total"], unresolved_warnings=c["parser_warnings"],
+                        findings_awaiting_review=c["relationships"]["awaiting_review"], last_activity=last)
+
+
+@router.get("/{case_id}/counts")
+def case_counts_route(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
+    """Canonical counts with the definition of each. Every surface that shows a number reads this."""
+    return counts.case_counts(db, case)
 
 
 @router.get("/{case_id}/files", response_model=list[SourceFileOut])

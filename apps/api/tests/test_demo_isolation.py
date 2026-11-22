@@ -50,10 +50,15 @@ def test_demo_origin_rate_limit_and_expiry(client):
         u.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
         db.commit()
     assert client.get("/api/auth/me", headers=h).status_code == 401
-    # short-lived scoped token works for its holder
+    # A short-lived scoped token is minted for its holder but reaches only the routes its scope allows. This previously
+    # asserted that a download token could call an ordinary endpoint, which was the authorisation defect itself.
     h2, _ = _demo(client)
     tok = client.post("/api/auth/short-token", json={"scope": "download"}, headers=h2).json()
-    assert tok["expires_in_seconds"] <= 600 and client.get("/api/auth/me", headers={"Authorization": f"Bearer {tok['access_token']}"}).status_code == 200
+    assert tok["expires_in_seconds"] <= 600
+    scoped = {"Authorization": f"Bearer {tok['access_token']}"}
+    assert client.get("/api/auth/me", headers=scoped).status_code == 403, "a download token must not reach ordinary endpoints"
+    case = client.post("/api/synthetic/generate", json={"scenario_type": "desert_mirage", "difficulty": "clean", "size": "small", "seed": 6301}, headers=h2).json()["case"]["id"]
+    assert client.get(f"/api/cases/{case}/report.pdf", headers=scoped).status_code == 200, "a download token must still work on a download route"
 
 
 def test_sealed_truth_never_served_and_challenge_reveal_only_after_lock(client, analyst):

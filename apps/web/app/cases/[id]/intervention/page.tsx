@@ -41,7 +41,7 @@ function Body({ id }: { id: string }) {
                 <p className="mt-2 text-xs muted">Uncertainty: attribution bounds {JSON.stringify(data.scenarios[0]?.uncertainty.attribution_bounds)} · balance known: {String(data.scenarios[0]?.uncertainty.balance_known)} · statement supplied: {String(data.scenarios[0]?.uncertainty.statement_supplied)}</p>
               </Section>
             ) : <div className="callout-warn text-sm">{data.acknowledgement_required} Tick the box above to view scenarios.</div>}
-            <Section title="Blast radius (observed relationships only)"><Table dense cols={["From", "To", "Kind", "Amount"]} rows={data.blast_radius.edges.slice(0, 60).map((e: any, i: number) => [<span key="f" className="mono">{e.from}</span>, <span key="t" className="mono">{e.to}</span>, <Chip key="k" v={e.kind.includes("investigated") || e.kind.includes("onward") ? "observed" : "derived"} title={e.kind} />, <Money key="a" v={e.amount_minor} />])} /></Section>
+            <Section title="Blast radius (observed relationships only)"><Table dense cols={["From", "To", "Kind", "Amount"]} rows={data.blast_radius.edges.slice(0, 60).map((e: any) => [<span key="f" className="mono">{e.from}</span>, <span key="t" className="mono">{e.to}</span>, <Chip key="k" v={e.kind.includes("investigated") || e.kind.includes("onward") ? "observed" : "derived"} title={e.kind} />, <Money key="a" v={e.amount_minor} />])} /></Section>
             <MotionScene scene="recovery_reconciliation" height={110} />
             <Limitations items={data.limitations} />
           </div>
