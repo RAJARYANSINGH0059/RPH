@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiBase, cookieOptions, sameOrigin } from "@/lib/server";
+import { apiBase, cookieOptions, csrfCookieOptions, newCsrfToken, sameOrigin } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,5 +20,6 @@ export async function POST(req: Request) {
   if (!upstream.ok) return NextResponse.json(body, { status: upstream.status });
   const res = NextResponse.json({ user: body.user });
   res.cookies.set({ ...cookieOptions(8 * 3600), value: body.access_token });
+  res.cookies.set(csrfCookieOptions(8 * 3600, newCsrfToken()));  // paired with the session: echoed back on every write
   return res;
 }

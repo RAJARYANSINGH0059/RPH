@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiBase, cookieOptions, sessionToken } from "@/lib/server";
+import { apiBase, cookieOptions, csrfCookieOptions, sessionToken } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,5 +11,6 @@ export async function POST() {
   }
   const res = NextResponse.json({ ok: true });
   res.cookies.set({ ...cookieOptions(0), value: "" });
+  res.cookies.set(csrfCookieOptions(0, ""));  // the paired CSRF cookie goes with the session
   return res;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiBase, sessionToken } from "@/lib/server";
+import { apiBase, csrfOk, sameOrigin, sessionToken } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,8 +17,20 @@ const HOP = new Set(["connection", "keep-alive", "transfer-encoding", "content-e
 
 /** Same-origin proxy: forwards the request to the API with the HttpOnly session token. The browser never sees the token.
  * Bodies are limited by the platform (serverless ~4.5 MB); file uploads/downloads use scoped short tokens directly instead. */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
 async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
+  // The session travels in a cookie, so a state-changing call must prove it came from this origin: the Origin header
+  // must match the deployment, and the page must echo the CSRF cookie back in a header it had to read to know.
+  if (!SAFE_METHODS.has(req.method.toUpperCase())) {
+    if (!sameOrigin(req)) {
+      return NextResponse.json({ detail: "Cross-site request refused" }, { status: 403 });
+    }
+    if (!(await csrfOk(req))) {
+      return NextResponse.json({ detail: "Missing or invalid CSRF token. Reload the page and try again." }, { status: 403 });
+    }
+  }
   const token = await sessionToken();
   const url = new URL(req.url);
   const target = `${apiBase()}/api/${path.map(encodeURIComponent).join("/")}${url.search}`;

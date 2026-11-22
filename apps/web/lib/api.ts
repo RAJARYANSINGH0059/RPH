@@ -29,6 +29,13 @@ export function setCaseContext(c: { id: string; title: string } | null) {
   try { if (c) window.localStorage.setItem(CASE_KEY, JSON.stringify(c)); else window.localStorage.removeItem(CASE_KEY); window.dispatchEvent(new Event("ps05x:case")); } catch { /* ignore */ }
 }
 
+/** The CSRF cookie is readable on purpose; the session cookie it is paired with is not. */
+function readCsrfCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|;\s*)ps05x_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Jittered backoff: 1s, 2s, 4s, 8s, then 10s, so a cold start is ridden out without hammering the API. */
 const backoff = (attempt: number) => Math.round([1000, 2000, 4000, 8000, 10000][Math.min(attempt, 4)] * (0.75 + Math.random() * 0.5));
@@ -109,6 +116,11 @@ export async function api<T = any>(path: string, init: RequestInit & { raw?: boo
 async function request<T = any>(path: string, init: RequestInit & { raw?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
   if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  // Double-submit: echo the CSRF cookie this origin set, so a cross-site page cannot forge a state-changing call.
+  if ((init.method || "GET").toUpperCase() !== "GET") {
+    const csrf = readCsrfCookie();
+    if (csrf) headers["x-csrf-token"] = csrf;
+  }
   // A sleeping free-plan API answers 503 (or the platform answers 504) until it has woken. Those are transient, so a
   // read is retried with jittered backoff inside a budget rather than reported as a failure the person must act on.
   const retryable = (status: number) => status === 503 || status === 504 || status === 502;
