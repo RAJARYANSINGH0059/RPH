@@ -4,9 +4,11 @@ import "./globals.css";
 
 /* Display serif for titles and headline figures, a neutral grotesque for the interface, and a mono for identifiers,
  * locators and hashes. Loaded self-hosted by next/font so there is no third-party request at runtime. */
+/* All three are variable fonts: the weight axis is requested whole, because pinning discrete weights breaks the
+ * next/font Google loader at build time. If a face cannot be fetched the CSS stacks fall back to system faces. */
 const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const display = Playfair_Display({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-display", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono", display: "swap" });
+const display = Playfair_Display({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
   title: "PS05-X Investigation Workbench",
