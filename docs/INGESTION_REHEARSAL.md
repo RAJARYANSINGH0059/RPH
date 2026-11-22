@@ -79,3 +79,19 @@ exists because some layout will eventually need it.
 
 Scanned statements remain outside this rehearsal: they need OCR, which is implemented and tested locally but
 disabled on the free deployment after it exceeded the memory limit.
+
+## Live verification (22 November 2026)
+
+The five layouts that exposed a defect were uploaded to the deployed API, through the same route an
+investigator uses, after the fixes were released:
+
+| Layout | What it exercises | Transactions expected | Produced | Statement holders |
+|---|---|---:|---:|---:|
+| `sbi_style.csv` | Tab-separated with a preamble | 3 | 3 | 1 |
+| `hdfc_style.csv` | Preamble, dotted column names, trailer lines | 3 | 3 | 1 |
+| `preamble_trap.csv` | A branch line sitting above the real header | 2 | 2 | 1 |
+| `statement_on_second_sheet.xlsx` | A statement behind a cover sheet | 3 | 3 | 1 |
+| `two_accounts_two_sheets.xlsx` | One account per worksheet | 5 | 5 | **2** |
+
+The last row is the one worth reading twice. Before this rehearsal the file produced three transactions and one
+account; it now produces five across two distinct holders, which is what the workbook actually contains.
