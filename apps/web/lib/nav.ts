@@ -2,13 +2,15 @@
  * Case-scoped destinations resolve against the selected case; without a case they point to the registry with a hint.
  * `scripts/check-nav.mjs` asserts that every destination occurs exactly once. */
 
-export type NavChild = { key: string; label: string; hint: string; path: string; caseScoped?: boolean; helpKey?: string; roles?: string[] };
+export type NavChild = { key: string; label: string; hint: string; path: string; caseScoped?: boolean; helpKey?: string; roles?: string[]; section?: string };
 export type NavGroup = { key: string; num: string; label: string; icon: string; children: NavChild[] };
 
 const c = (key: string, label: string, hint: string, path: string, helpKey?: string): NavChild => ({ key, label, hint, path, caseScoped: true, helpKey });
 const g = (key: string, label: string, hint: string, path: string, helpKey?: string): NavChild => ({ key, label, hint, path, helpKey });
 
-export const NAV: NavGroup[] = [
+/** The twelve authored categories. They are the editorial source; the sidebar presents the seven sections below, which are
+ * composed from these without changing, adding or dropping a single destination. */
+const SOURCE: NavGroup[] = [
   { key: "command", num: "01", label: "Command Centre", icon: "layers", children: [
     g("overview", "Overview", "Operational summary of your cases", "/overview", "overview"),
     g("activity", "Recent Activity", "Latest audited actions across your cases", "/activity"),
@@ -107,6 +109,24 @@ export const NAV: NavGroup[] = [
     g("settings", "User Settings", "Profile, session and preferences", "/settings"),
     g("app-audit", "Application Audit Log", "Your audited actions across cases", "/audit-log"),
   ] },
+];
+
+const src = Object.fromEntries(SOURCE.map((g) => [g.key, g])) as Record<string, NavGroup>;
+/** Children of a source category, tagged so a long section can show quiet dividers instead of a flat list of twenty. */
+const part = (key: string, section: string): NavChild[] => src[key].children.map((c) => ({ ...c, section }));
+
+/** Seven top-level sections. Fewer places to look, every destination still exactly one click from its section. */
+export const NAV: NavGroup[] = [
+  { key: "command", num: "01", label: "Command Centre", icon: "layers", children: src.command.children },
+  { key: "cases", num: "02", label: "Case Operations", icon: "cases", children: src.cases.children },
+  { key: "financial", num: "03", label: "Financial and Payment Intelligence", icon: "money", children: src.financial.children },
+  { key: "infrastructure", num: "04", label: "Infrastructure and Graph Intelligence", icon: "globe",
+    children: [...part("cyber", "Infrastructure"), ...part("crosscase", "Graph and cross-case")] },
+  { key: "investigation", num: "05", label: "Investigation and Evidence", icon: "radar",
+    children: [...part("operation", "Fraud operation"), ...part("reasoning", "Investigative reasoning"), ...part("evidence", "Evidence and forensics")] },
+  { key: "simulation", num: "06", label: "Simulation and Evaluation", icon: "factory", children: src.simulation.children },
+  { key: "coordination", num: "07", label: "Reports and Coordination", icon: "report",
+    children: [...part("output", "Results and reports"), ...part("history", "History and coordination"), ...part("data", "Sources and settings")] },
 ];
 
 export const UTILITY: NavChild[] = [

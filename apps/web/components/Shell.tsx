@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { I, type IconName } from "@/components/icons";
 import { api, getCaseContext, getUser, isDemo, setCaseContext, signOut, type User } from "@/lib/api";
 import { EVIDENCE_LEVEL_HELP, GUIDE, WALKTHROUGH } from "@/lib/guide";
@@ -202,7 +202,18 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
                 <span className={groupActive ? "text-saffron" : "text-rail-text/70"}><Icon name={g.icon as IconName} width={16} height={16} /></span>
                 {!collapsed && <><span className="text-[10px] font-semibold tracking-[0.14em] text-rail-text/45">{g.num}</span><span className="flex-1 text-left text-[11px] font-bold uppercase leading-tight tracking-[0.08em]">{g.label}</span><I.chevron width={14} height={14} className={`transition-transform ${isOpen ? "rotate-90" : ""}`} /></>}
               </button>
-              {(isOpen || collapsed) && <div id={`grp-${g.key}`} className="mb-1 flex flex-col gap-0.5">{g.children.map((c) => <NavLink key={c.key} child={c} group={g} />)}</div>}
+              {(isOpen || collapsed) && (
+                <div id={`grp-${g.key}`} className="mb-1 flex flex-col gap-0.5">
+                  {g.children.map((c, i) => (
+                    <Fragment key={c.key}>
+                      {!collapsed && c.section && c.section !== g.children[i - 1]?.section && (
+                        <div className="mt-2 px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-rail-text/40">{c.section}</div>
+                      )}
+                      <NavLink child={c} group={g} />
+                    </Fragment>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -258,8 +269,8 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
                     <span className="text-accent-deep">{route?.child.label || title}</span>
                     {caseTitle && <><span aria-hidden>·</span><span className="mono normal-case tracking-normal">{caseTitle.slice(0, 40)}</span></>}
                   </div>
-                  <h1 className="hero-title mt-2 text-[26px] md:text-[38px]">{title.replace(/^\[SYNTHETIC\]\s*/i, "")}</h1>
-                  {subtitle && <p className="mt-2.5 max-w-3xl text-sm leading-relaxed muted">{subtitle}</p>}
+                  <h1 className="hero-title mt-2.5 text-[30px] md:text-[42px]">{title.replace(/^\[SYNTHETIC\]\s*/i, "")}</h1>
+                  {subtitle && <p className="mt-3 max-w-3xl text-[15px] leading-relaxed muted">{subtitle}</p>}
                   <div className="mt-3"><Banner synthetic={synthetic} uploaded={uploaded} demo={demo} /></div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
