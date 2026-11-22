@@ -145,3 +145,34 @@ already exists. Such a database can therefore be missing a column added by a lat
 while the test suite passes, because the suite builds its schema from the models each run. The local file was brought
 to head and stamped. This affects development only: the live PostgreSQL database is built by `alembic upgrade head`
 in the start command.
+
+### Live verification of phases 1–3 (2026-11-22)
+
+Deployed from this machine: API `dep-dc1bkd6c6qcc73add1n0` live with `migrations: applied`, web deployment
+`rph-inwu3e768`. `/api/health/ready` reports `degraded`, which is correct and deliberate: storage and OCR are
+optional subsystems and remain unavailable on the free instance.
+
+Against `https://ps05x-api.onrender.com` on a freshly generated case:
+
+- **Typologies** — twelve accounts examined, seven thresholds published, the top account showing three patterns and
+  labelled `possible_mule_pattern_requires_review`.
+- **UTR search** — an unknown reference returns `not_found` and names the record that would establish it. A real
+  reference written messily (lowercase prefix, inserted hyphen, surrounding spaces) returned `exact_single` with the
+  source file `statement_5067_victim.csv` and locator `{row: 4}`.
+- **Trace** — one hop, one unresolved end naming the statement of the receiving account, accounts masked
+  (`11******5067`, `12******6855`).
+- **PDF statement** — a synthetic statement PDF uploaded to the live API was parsed by `pdf_statement`, producing
+  four transactions with a derived column mapping, a recorded extraction confidence of `medium`, the
+  `pdf_statement_low_confidence_needs_review` warning, and file status `needs_review`. This first run also exposed a
+  warning recorded twice, which was fixed and re-verified live: the parse run now carries three distinct warnings.
+
+Both new pages were driven in a browser against a local case: the typologies page expanded each pattern with its
+observed values, threshold, triggering transactions, alternatives and limits; the trace page searched, listed the
+candidate with its source cell, and traced from it. Page load on the warmed production alias: typologies 617 ms,
+UTR trace 436 ms.
+
+Badges on both pages were corrected during verification. They had borrowed the evidence-level vocabulary, so a
+debit displayed as `CONTRADICTED`, an exact reference match as `CORROBORATED`, and an observed pattern as
+corroborated evidence. Each badge now states what it means. A precision badge also fired on every row, because the
+vocabulary is `second|minute|day|month|unknown|ambiguous` and the check compared against a non-existent `exact`;
+it now flags only genuinely imprecise timestamps.
