@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -107,6 +107,8 @@ def demo_session(request: Request, db: Session = Depends(get_db)):
 
 class ShortTokenIn(BaseModel):
     scope: Literal["upload", "download"]
+    # Binding the token to one case stops it being replayed against another case the holder may also access.
+    case_id: str | None = Field(default=None, max_length=36)
 
 
 @router.post("/short-token")
@@ -116,7 +118,10 @@ def short_token(body: ShortTokenIn, user: User = Depends(get_current_user)):
     minutes = 10
     if user.expires_at is not None:
         minutes = max(1, min(minutes, int((user.expires_at - datetime.now(timezone.utc)).total_seconds() // 60) or 1))
-    return {"access_token": create_access_token(user.id, user.role.value, minutes=minutes, scope=body.scope), "expires_in_seconds": minutes * 60, "scope": body.scope}
+    case_id = getattr(body, "case_id", None)
+    token = create_access_token(user.id, user.role.value, minutes=minutes, scope=body.scope, case_id=case_id)
+    return {"access_token": token, "expires_in_seconds": minutes * 60, "scope": body.scope, "case_id": case_id,
+            "note": "Bound to this case when case_id is supplied; a bound token is refused on any other case."}
 
 
 @router.post("/logout")

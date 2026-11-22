@@ -137,13 +137,19 @@ async function request<T = any>(path: string, init: RequestInit & { raw?: boolea
   return (await res.blob()) as unknown as T;
 }
 
-async function shortToken(scope: "upload" | "download"): Promise<string> {
-  const r = await api<{ access_token: string }>("/auth/short-token", { method: "POST", body: JSON.stringify({ scope }) });
+/** The case a transfer path belongs to, so the short token can be bound to it and cannot be replayed elsewhere. */
+function caseOf(path: string): string | null {
+  const m = path.match(/^\/cases\/([0-9a-f-]{36})(\/|$)/i);
+  return m ? m[1] : null;
+}
+
+async function shortToken(scope: "upload" | "download", caseId: string | null): Promise<string> {
+  const r = await api<{ access_token: string }>("/auth/short-token", { method: "POST", body: JSON.stringify({ scope, case_id: caseId }) });
   return r.access_token;
 }
 
 export async function download(path: string): Promise<Blob> {
-  const token = await shortToken("download");
+  const token = await shortToken("download", caseOf(path));
   const res = await fetch(`${API_BASE}/api${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new ApiError(res.status, await readError(res));
   return await res.blob();
@@ -160,7 +166,7 @@ export async function saveAs(path: string, filename: string) {
 
 /** Multipart upload directly to the API (scoped token); the server applies the same checks as any upload. */
 export async function upload<T = any>(path: string, form: FormData): Promise<T> {
-  const token = await shortToken("upload");
+  const token = await shortToken("upload", caseOf(path));
   const res = await fetch(`${API_BASE}/api${path}`, { method: "POST", body: form, headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new ApiError(res.status, await readError(res));
   return (await res.json()) as T;

@@ -102,3 +102,49 @@ def test_scope_route_tables_match_real_routes():
     real = {(m, r.path) for r in app.routes if hasattr(r, "methods") for m in r.methods}
     for entry in UPLOAD_ROUTES | DOWNLOAD_ROUTES:
         assert entry in real, f"scope policy names a route that does not exist: {entry}"
+
+
+# --- issuer / audience / not-before / resource binding -------------------------------------------------------------
+
+def test_issuer_and_audience_are_validated(client, case_id):
+    """A token signed with our key but minted for another issuer or audience must not be accepted."""
+    s = get_settings()
+    base = {"sub": "x", "role": "analyst", "scope": "full", "iat": int(time.time()), "exp": int(time.time()) + 600}
+    for claims in ({**base, "iss": "someone-else", "aud": "ps05x-web"},
+                   {**base, "iss": "ps05x-api", "aud": "another-app"},
+                   base):  # no issuer or audience at all
+        tok = jwt.encode(claims, s.jwt_secret, algorithm=s.jwt_algorithm)
+        assert client.get(f"/api/cases/{case_id}", headers={"Authorization": f"Bearer {tok}"}).status_code == 401
+
+
+def test_token_not_yet_valid_is_refused(client, case_id):
+    s = get_settings()
+    future = int(time.time()) + 3600
+    tok = jwt.encode({"sub": "x", "role": "analyst", "scope": "full", "iss": "ps05x-api", "aud": "ps05x-web",
+                      "nbf": future, "iat": future, "exp": future + 600}, s.jwt_secret, algorithm=s.jwt_algorithm)
+    assert client.get(f"/api/cases/{case_id}", headers={"Authorization": f"Bearer {tok}"}).status_code == 401
+
+
+def test_download_token_is_bound_to_one_case(client, analyst, case_id):
+    """A download token issued for one case must not export another, even one its holder can access."""
+    other = client.post("/api/synthetic/generate", json={"scenario_type": "benign_lookalike", "difficulty": "clean", "size": "small", "seed": 6401}, headers=analyst).json()["case"]["id"]
+    r = client.post("/api/auth/short-token", json={"scope": "download", "case_id": case_id}, headers=analyst)
+    assert r.status_code == 200 and r.json()["case_id"] == case_id
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.get(f"/api/cases/{case_id}/report.pdf", headers=h).status_code == 200, "the bound case must still work"
+    assert client.get(f"/api/cases/{other}/report.pdf", headers=h).status_code == 403, "a bound token must not export another case"
+
+
+def test_upload_token_is_bound_to_one_case(client, analyst, case_id):
+    other = client.post("/api/synthetic/generate", json={"scenario_type": "benign_lookalike", "difficulty": "clean", "size": "small", "seed": 6402}, headers=analyst).json()["case"]["id"]
+    tok = client.post("/api/auth/short-token", json={"scope": "upload", "case_id": case_id}, headers=analyst).json()["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+    f = {"files": ("bound.csv", b"Date,Narration,Ref No,Debit,Credit,Balance,Account,Counterparty,Beneficiary Name\n", "text/csv")}
+    assert client.post(f"/api/cases/{other}/upload", files=f, headers=h).status_code == 403
+    assert client.post(f"/api/cases/{case_id}/upload", files=f, headers=h).status_code in (200, 201)
+
+
+def test_unbound_scoped_token_still_requires_membership(client, analyst, supervisor, case_id):
+    """Backwards compatibility: a token minted without a case binding is still constrained by case membership."""
+    tok = client.post("/api/auth/short-token", json={"scope": "download"}, headers=supervisor).json()["access_token"]
+    assert client.get(f"/api/cases/{case_id}/report.pdf", headers={"Authorization": f"Bearer {tok}"}).status_code == 404

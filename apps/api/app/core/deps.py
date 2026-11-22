@@ -44,6 +44,13 @@ def get_current_user(
     if not scope_permits(scope, request.method, template):
         raise HTTPException(status.HTTP_403_FORBIDDEN, f"Token scope '{scope}' is not valid on this endpoint. {describe(scope)}")
     request.state.token_scope = scope
+    request.state.token_case = payload.get("case")
+    # A scoped token bound to one case must not be replayed against another, even one its holder may access.
+    bound = payload.get("case")
+    if bound and scope != "full":
+        asked = request.path_params.get("case_id")
+        if asked and asked != bound:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "This token was issued for a different case")
     return user
 
 

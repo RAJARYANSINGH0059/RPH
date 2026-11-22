@@ -48,6 +48,28 @@ stale relationships are counted and labelled, never dropped.
 | `cd apps/web; npx next build` | succeeds |
 | `cd apps/web; node --experimental-strip-types scripts/check-nav.mjs` | 7 groups, 74 feature routes, 3 utility, 0 problems |
 
+## Second pass: tokens, authorization matrix, cold-start recovery
+
+| Requirement | Status | Code | Tests |
+|---|---|---|---|
+| Issuer, audience and not-before validation (Part B §4) | COMPLETE | `app/core/security.py` | `test_token_scopes.py`: tokens minted for another issuer or audience, or with none, are refused; a not-yet-valid token is refused |
+| Resource-bound temporary tokens (Part B §5) | COMPLETE | `app/core/security.py`, `app/core/deps.py`, `app/routers/auth.py`, `apps/web/lib/api.ts` | A short token is now bound to the case it was issued for; an upload or download token is refused on any other case, including one its holder may access. The browser binds automatically from the request path. |
+| Automated authorization matrix (Part B §6) | COMPLETE | `tests/test_authorization_matrix.py` | Walks the application's own route table, so a route added later is covered the moment it exists. Asserts anonymous, malformed, wrongly signed, expired and unknown-scope callers are refused on every route, that upload and download tokens reach only their listed routes, and that a non-member gets 404 on case-scoped routes. Two endpoints are deliberately public and are justified in the test: the service banner and the synthetic scenario options, both static with no case data. |
+| Cold-start recovery, no bare 504 (Part C §10) | PARTIAL | `apps/web/app/api/proxy/[...path]/route.ts`, `apps/web/lib/api.ts` | The proxy waits a bounded 25 s and answers 503 with a reason and retry-after instead of letting the platform emit a bodyless 504; the client retries reads with jittered backoff inside a 70 s budget. **Not yet observed against a real cold start in production.** |
+
+Still outstanding from the completion prompt, unchanged: CSRF tokens, shared multi-worker rate limiting, JWT
+revocation, the browser end-to-end matrix, accessibility and large-graph performance checks, property-based
+fund-conservation tests, dependency audits in CI, durable storage, production OCR, backup and restore, retention and
+legal hold, and the independent clean-checkout reproduction.
+
+### Keeping the API awake
+
+The API sleeps after about fifteen minutes idle, which is what produced the waiting states and 504s. The application
+pings it every ten minutes while a tab is open. A scheduled external ping (for example a GitHub Actions workflow on a
+ten-minute cron hitting `/api/health/live`) would keep it awake when nobody has the app open; that was not added here
+because creating a scheduled workflow was refused by this environment's permission policy, so it is left for the
+repository owner to add if wanted.
+
 ## Live verification (https://ps05x-api.onrender.com, https://rph-ps05x.vercel.app)
 
 Run against the deployed API with a fresh synthetic demo session and a generated Operation Desert Mirage case:
