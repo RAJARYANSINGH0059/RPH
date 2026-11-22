@@ -153,7 +153,7 @@ export function matchRoute(pathname: string): { group: NavGroup | null; child: N
   let best: { group: NavGroup | null; child: NavChild } | null = null;
   for (const item of allChildren()) {
     const p = item.child.caseScoped ? item.child.path : item.child.path;
-    if (item.child.caseScoped !== !!m) continue;
+    if (!!item.child.caseScoped !== !!m) continue;  // global children leave caseScoped undefined, so compare booleans
     if (rest === p || (p && rest.startsWith(p + "/") && !(item.child.caseScoped && p === ""))) {
       if (!best || p.length > (best.child.path.length)) best = item;
     }
