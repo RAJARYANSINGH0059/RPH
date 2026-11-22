@@ -28,7 +28,7 @@ ISSUER = "ps05x-api"
 AUDIENCE = "ps05x-web"
 
 
-def create_access_token(user_id: str, role: str, *, minutes: int | None = None, scope: str = "full", case_id: str | None = None) -> str:
+def create_access_token(user_id: str, role: str, *, minutes: int | None = None, scope: str = "full", case_id: str | None = None, epoch: int = 0) -> str:
     """Mint a bearer token.
 
     `case_id` binds a scoped upload/download token to one case, so it cannot be replayed against another case the
@@ -40,6 +40,7 @@ def create_access_token(user_id: str, role: str, *, minutes: int | None = None, 
         "sub": user_id,
         "role": role,
         "scope": scope,
+        "epoch": epoch,
         "iss": ISSUER,
         "aud": AUDIENCE,
         "nbf": int(now.timestamp()) - 5,          # small leeway for clock skew between the web tier and the API

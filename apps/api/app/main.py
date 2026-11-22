@@ -59,6 +59,25 @@ def create_app() -> FastAPI:
     for r in (health.router, auth.router, cases.router, graph.router, synthetic.router, connectors.router, reports.router, crosscase.router, claims.router, cooperation.router, intel.router, intel_global.router, benchmark.router):
         app.include_router(r, prefix="/api")
 
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next):
+        """Headers that apply to every API response.
+
+        The API serves JSON, PDFs, CSVs and ZIPs, never HTML, so it denies framing and sniffing outright and keeps
+        exports out of shared caches: an evidence export must not be held by an intermediary.
+        """
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), camera=(), microphone=(), interest-cohort=()")
+        ctype = response.headers.get("content-type", "")
+        if any(k in ctype for k in ("application/pdf", "text/csv", "application/zip")) or "attachment" in response.headers.get("content-disposition", ""):
+            response.headers["Cache-Control"] = "no-store, private"
+        return response
+
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception):
         log.exception("unhandled error on %s", request.url.path)

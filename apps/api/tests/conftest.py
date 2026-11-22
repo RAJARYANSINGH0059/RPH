@@ -5,6 +5,8 @@ import os
 import tempfile
 import uuid
 
+import os
+
 import pytest
 
 _TMP = tempfile.mkdtemp(prefix="ps05x_test_")
@@ -23,6 +25,11 @@ from app.core.security import hash_password  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Role, User  # noqa: E402
+
+
+# Rate limits are real and tested in tests/test_rate_limiting.py, which turns them on for itself. Everywhere else
+# they are off, so a limit cannot mask an unrelated failure in a suite that legitimately generates many cases.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "0")
 
 
 @pytest.fixture(scope="session")

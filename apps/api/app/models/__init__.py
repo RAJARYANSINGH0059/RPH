@@ -83,6 +83,17 @@ class User(Base):
     # demo visitors: isolated workspace with an absolute expiry; cleaned up with their cases
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
     expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # Stateless revocation. Every token carries the epoch it was minted under; raising this invalidates each one
+    # already issued for this principal, which is what logout, a role change and an emergency revocation do.
+    token_epoch: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+
+
+class RateEvent(Base):
+    """One counted request against a rate-limit bucket. Rows expire by time; see app/services/ratelimit.py."""
+    __tablename__ = "rate_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    bucket: Mapped[str] = mapped_column(String(160), index=True)
+    at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
 
 
 class Case(Base):

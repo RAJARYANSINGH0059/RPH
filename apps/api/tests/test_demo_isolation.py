@@ -40,7 +40,10 @@ def test_demo_session_isolation(client, analyst):
     assert client.get("/api/privacy/status", headers=a).status_code == 200
 
 
-def test_demo_origin_rate_limit_and_expiry(client):
+def test_demo_origin_rate_limit_and_expiry(client, monkeypatch):
+    """Limits are off for the suite at large so they cannot mask unrelated failures; this test needs them, and turns
+    them on for itself."""
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "1")
     assert client.post("/api/auth/demo-session", headers={"origin": "https://attacker.example"}).status_code == 403
     codes = [client.post("/api/auth/demo-session", headers={**ORIGIN, "x-forwarded-for": "198.51.100.77"}).status_code for _ in range(11)]
     assert codes.count(429) >= 1 and codes[0] == 201

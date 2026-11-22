@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_case_or_404, get_current_user
+from app.core.limits import limit_user
 from app.db.session import get_db
 from app.models import Case, CaseMembership, SyntheticScenario, User
 from app.routers.cases import _case_out, _run_out, _sf_out
@@ -24,7 +25,7 @@ def options():
 
 
 @router.post("/generate", response_model=SyntheticResult, status_code=201)
-def generate(body: SyntheticRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def generate(body: SyntheticRequest, user: User = Depends(limit_user("synthetic")), db: Session = Depends(get_db)):
     case, scen, outcomes, manifest = generate_case(db, user, scenario_type=body.scenario_type, difficulty=body.difficulty, size=body.size, seed=body.seed, title=body.title)
     db.add(CaseMembership(case_id=case.id, user_id=user.id, role_in_case="owner"))
     db.commit()

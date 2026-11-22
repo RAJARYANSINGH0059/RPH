@@ -36,6 +36,8 @@ def get_current_user(
         from datetime import datetime, timezone
         if user.expires_at <= datetime.now(timezone.utc):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Demo session expired")
+    if int(payload.get("epoch", 0)) != int(getattr(user, "token_epoch", 0) or 0):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session has been revoked; sign in again")
     scope = payload.get("scope") or "full"
     if scope not in KNOWN_SCOPES:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown token scope")

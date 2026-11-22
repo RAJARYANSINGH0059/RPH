@@ -65,8 +65,9 @@ export function useApiState() {
       if (res.ok) {
         const body = await res.json().catch(() => ({}));
         setDetail(body);
-        const healthy = body?.status === "ready" && (body.database ?? "ok") === "ok" && (body.migrations ?? "applied") === "applied";
-        setState(healthy ? "ready" : "degraded");
+        // The API reports each subsystem. "ready" means nothing required is failing and nothing optional is missing;
+        // anything else is named rather than smoothed over.
+        setState(body?.status === "ready" ? "ready" : "degraded");
         return;
       }
       if (res.status >= 500) setState("unavailable");
@@ -107,5 +108,12 @@ export function useApiState() {
   }, [probe, attempt]);
 
   const settled = state === "ready" || state === "degraded" || state === "auth_required";
-  return { state, elapsed: settled ? 0 : elapsed, detail, retry, label: API_STATE_LABEL[state], description: API_STATE_DETAIL[state] };
+  const unavailable: string[] = (detail?.optional_unavailable as string[] | undefined) ?? [];
+  const failed: string[] = (detail?.required_failed as string[] | undefined) ?? [];
+  const named = [...failed, ...unavailable].map((k) => k.replace(/_/g, " ")).join(", ");
+  const label = state === "degraded" && named ? `API degraded: ${named} unavailable` : API_STATE_LABEL[state];
+  const subsystems = (detail?.subsystems as Record<string, { status: string; required: boolean; note?: string }>) || {};
+  const notes = Object.entries(subsystems).filter(([, v]) => v.note).map(([k, v]) => `${k.replace(/_/g, " ")}: ${v.note}`);
+  const description = notes.length ? `${API_STATE_DETAIL[state]} ${notes.join(" ")}` : API_STATE_DETAIL[state];
+  return { state, elapsed: settled ? 0 : elapsed, detail, retry, label, description, subsystems };
 }

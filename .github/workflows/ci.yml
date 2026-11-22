@@ -75,6 +75,41 @@ jobs:
           NEXT_PUBLIC_API_BASE_URL: https://api.example.invalid
       - run: npm run typecheck   # after build so next-env.d.ts exists
 
+  dependencies:
+    name: Dependency audit (npm + Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: npm audit (fails on high or critical)
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm audit --audit-level=high
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python dependency audit
+        working-directory: apps/api
+        run: |
+          pip install pip-audit
+          # Findings are reported and the build is not failed on them, because a fix often requires a framework
+          # upgrade that needs its own testing. Severity policy and any accepted finding live in
+          # docs/DEPENDENCY_POLICY.md with an owner and a review date.
+          pip-audit -r requirements.txt --progress-spinner off || true
+      - name: Python audit summary
+        working-directory: apps/api
+        run: pip-audit -r requirements.txt --progress-spinner off -f json > pip-audit.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: apps/api/pip-audit.json
+          if-no-files-found: ignore
+
   secrets:
     name: Secret scanning (gitleaks)
     runs-on: ubuntu-latest

@@ -148,3 +148,54 @@ def test_unbound_scoped_token_still_requires_membership(client, analyst, supervi
     """Backwards compatibility: a token minted without a case binding is still constrained by case membership."""
     tok = client.post("/api/auth/short-token", json={"scope": "download"}, headers=supervisor).json()["access_token"]
     assert client.get(f"/api/cases/{case_id}/report.pdf", headers={"Authorization": f"Bearer {tok}"}).status_code == 404
+
+
+# --- revocation -----------------------------------------------------------------------------------------------------
+
+def test_logout_revokes_every_token_held_by_that_principal(client):
+    """Signing out must invalidate the session and any short-lived token still in flight, not merely drop a cookie."""
+    r = client.post("/api/auth/demo-session", headers={"origin": "http://localhost:3000"})
+    assert r.status_code == 201
+    session = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    short = client.post("/api/auth/short-token", json={"scope": "download"}, headers=session).json()["access_token"]
+    assert client.get("/api/auth/me", headers=session).status_code == 200
+
+    out = client.post("/api/auth/logout", headers=session)
+    assert out.status_code == 200 and out.json()["revoked"] is True
+
+    assert client.get("/api/auth/me", headers=session).status_code == 401, "the session token must stop working"
+    assert client.get("/api/cases", headers={"Authorization": f"Bearer {short}"}).status_code == 401, \
+        "a short-lived token issued before logout must stop working too"
+
+
+def test_admin_can_revoke_another_principal_and_others_are_unaffected(client, admin):
+    """A principal created for this test is revoked, so the shared fixtures other modules depend on stay valid."""
+    demo = client.post("/api/auth/demo-session", headers={"origin": "http://localhost:3000"}).json()
+    victim = {"Authorization": f"Bearer {demo['access_token']}"}
+    assert client.get("/api/auth/me", headers=victim).status_code == 200
+
+    r = client.post(f"/api/auth/revoke/{demo['user']['id']}", headers=admin)
+    assert r.status_code == 200 and r.json()["token_epoch"] >= 1
+    assert client.get("/api/auth/me", headers=victim).status_code == 401, "the revoked principal's token must be refused"
+    assert client.get("/api/auth/me", headers=admin).status_code == 200, "another principal must be unaffected"
+
+
+def test_revocation_requires_an_administrator(client, supervisor):
+    """A fresh non-administrator principal is used: the shared analyst fixture is revoked by the test above, which is
+    itself evidence that revocation takes effect."""
+    me = client.get("/api/auth/me", headers=supervisor).json()
+    demo = client.post("/api/auth/demo-session", headers={"origin": "http://localhost:3000"}).json()
+    demo_h = {"Authorization": f"Bearer {demo['access_token']}"}
+    assert client.post(f"/api/auth/revoke/{me['id']}", headers=demo_h).status_code == 403
+    assert client.post(f"/api/auth/revoke/{me['id']}", headers=supervisor).status_code == 403
+
+
+def test_token_from_a_superseded_epoch_is_refused(client, admin):
+    """A token minted under an old epoch is refused even though its signature and expiry are valid. A principal
+    created here is used, so the shared fixtures stay valid for the rest of the suite."""
+    demo = client.post("/api/auth/demo-session", headers={"origin": "http://localhost:3000"}).json()
+    uid = demo["user"]["id"]
+    stale = create_access_token(uid, "demo_analyst", minutes=30, epoch=0)
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {stale}"}).status_code == 200
+    client.post(f"/api/auth/revoke/{uid}", headers=admin)
+    assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {stale}"}).status_code == 401
