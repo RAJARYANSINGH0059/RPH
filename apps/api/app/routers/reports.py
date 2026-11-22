@@ -12,7 +12,10 @@ from app.core.deps import get_case_or_404, get_current_user
 from app.db.session import get_db
 from app.models import Case, Transaction, User
 from app.reports.builder import build_report, report_pdf
+from app.reports.workbook import case_workbook, workbook_filename
 from app.services import audit
+
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(prefix="/cases/{case_id}/report", tags=["reports"])
 
@@ -32,6 +35,24 @@ def report_pdf_route(case: Case = Depends(get_case_or_404), user: User = Depends
     audit.record(db, "report.exported", actor_id=user.id, case_id=case.id, detail={"format": "pdf", "bytes": len(pdf)})
     db.commit()
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="ps05x_report_{case.id[:8]}.pdf"'})
+
+
+@router.get(".xlsx")
+def report_xlsx(case: Case = Depends(get_case_or_404), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The combined case workbook.
+
+    Built from the same canonical report as the JSON and PDF exports, so a total in the workbook cannot disagree
+    with the same total elsewhere in the case. The filename is derived from the case id and the date rather than
+    from the case title, because a title comes from user input and has no business in a Content-Disposition
+    header.
+    """
+    rep = build_report(db, case)
+    xlsx = case_workbook(db, case, rep)
+    audit.record(db, "report.exported", actor_id=user.id, case_id=case.id,
+                 detail={"format": "xlsx", "bytes": len(xlsx), "counts_version": rep["counts"]["version"]})
+    db.commit()
+    return Response(xlsx, media_type=XLSX_MEDIA_TYPE,
+                    headers={"Content-Disposition": f'attachment; filename="{workbook_filename(case)}"'})
 
 
 @router.get("/transactions.csv")

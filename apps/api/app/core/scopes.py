@@ -28,6 +28,7 @@ UPLOAD_ROUTES: frozenset[tuple[str, str]] = frozenset({
 DOWNLOAD_ROUTES: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/api/cases/{case_id}/report.pdf"),
     ("GET", "/api/cases/{case_id}/report.json"),
+    ("GET", "/api/cases/{case_id}/report.xlsx"),
     ("GET", "/api/cases/{case_id}/report/transactions.csv"),
     ("GET", "/api/cases/{case_id}/package.zip"),
     ("GET", "/api/cases/{case_id}/claims/pack.pdf"),

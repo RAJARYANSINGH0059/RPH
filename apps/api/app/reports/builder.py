@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.services import counts, ml_triage
 from app.graph import engine
+from app.models.twin import EvidenceRequest
+from app.services import typologies
 from app.models import (AnalystReview, Case, CounterEvidence, Entity, EvidenceItem, ParseRun, Relationship,
                         RelationshipEvidence, SourceFile, Transaction)
 
@@ -94,6 +96,29 @@ def build_report(db: Session, case: Case) -> dict:
         "ml_model": ml_triage.status(),
         "infrastructure_observations": [r for r in relationship_table if r["type"] in infra_types],
         "relationships": relationship_table,
+        "typologies": typologies.case_profiles(db, case),
+        "evidence_requests": [
+            {"id": r.id, "title": r.title, "custodian_type": r.organisation_type, "target_entity": r.target_entity,
+             "target_record": r.target_record, "window_from": _iso(r.window_from), "window_to": _iso(r.window_to),
+             "records_requested": r.required_fields or [], "status": r.status,
+             "legal_authority": r.legal_authority or "to be completed by an authorised officer",
+             "requesting_officer": r.requesting_officer or "to be completed by an authorised officer",
+             "rationale": r.rationale, "could_resolve": r.could_resolve or [],
+             "would_not_establish": r.would_not_establish or [],
+             "transmitted_by_this_system": False}
+            for r in db.execute(select(EvidenceRequest).where(EvidenceRequest.case_id == case.id)
+                                .order_by(EvidenceRequest.id)).scalars()],
+        "limitations": [
+            DISCLAIMER,
+            "A missing statement is reported as unknown. It is never evidence that no transaction occurred.",
+            "Duplicate rows are kept as evidence and excluded from totals, never deleted.",
+            "Timestamps carry their precision. Where a source gave no time zone, none is assumed.",
+            "Heuristic scores rank accounts for review and are not calibrated probabilities.",
+            "Any machine-learning output is advisory and never makes a decision.",
+            "Shared addresses, nameservers, autonomous systems, registrars and certificates are candidate links "
+            "only; none of them establishes common ownership or control.",
+            "A current lookup describes the moment it was made and is never presented as historical evidence.",
+        ],
         "counter_evidence": counter_rows,
         "reviews": [{"relationship_id": r.relationship_id, "decision": r.decision.value, "reason": r.reason, "at": _iso(r.created_at)} for r in reviews],
         "unresolved": {"relationships_requiring_review": len(unresolved), "parser_warnings": gaps,
@@ -133,6 +158,18 @@ def report_pdf(report: dict) -> bytes:
         story.append(t)
         story.append(Spacer(1, 6))
 
+    cnt = report["counts"]
+    story.append(Paragraph("<b>Summary</b>", ss["Heading3"]))
+    story.append(Paragraph(
+        f"{cnt['files']['total']} evidence file(s) · {cnt['transactions']['total']} transaction(s) "
+        f"({cnt['transactions']['excluding_duplicates']} excluding duplicates) · "
+        f"{cnt['entities']['total']} entities · {cnt['relationships']['total']} relationships "
+        f"({cnt['relationships']['awaiting_review']} awaiting review) · "
+        f"{(cnt.get('paths') or {}).get('total', 0)} reconstructed path(s), "
+        f"{(cnt.get('paths') or {}).get('unresolved', 0)} unresolved. "
+        f"Figures come from the canonical counts service (v{cnt['version']}), so they agree with the case "
+        f"screens and the other exports.", small))
+    story.append(Spacer(1, 6))
     table("Sources and hashes", ["File", "Kind", "SHA-256", "Status"], [[s["name"], s["kind"], s["sha256"], s["status"]] for s in report["sources"]], [6 * cm, 1.5 * cm, 8 * cm, 2.5 * cm])
     table("Parsing methods and warnings", ["File", "Parser", "Warnings"], [[p["file"], p["parser"], "; ".join(p["warnings"][:8]) or "—"] for p in report["parsing"]], [5 * cm, 4 * cm, 9 * cm])
     tx = report["transactions"]
@@ -152,9 +189,46 @@ def report_pdf(report: dict) -> bytes:
           [2.8 * cm, 5 * cm, 2.2 * cm, 1.8 * cm, 2.4 * cm, 3.8 * cm])
     table("Counter-evidence and alternative explanations", ["Relationship", "Kind", "Severity", "Description"],
           [[c["relationship_id"][:8], c["kind"], c["severity"], c["description"]] for c in report["counter_evidence"]], [2 * cm, 4 * cm, 1.6 * cm, 10.4 * cm])
+    # Explainable account behaviour: each pattern with the threshold it was judged against, the rows behind it
+    # and the ordinary explanations that fit the same records. A score on its own is not explainable.
+    typo = report.get("typologies") or {}
+    typo_rows = []
+    for prof in typo.get("profiles") or []:
+        for t_ in prof.get("typologies") or []:
+            if not (t_.get("triggered") or t_.get("status") in {"not_enough_history", "not_enough_evidence"}):
+                continue
+            th = {k: v for k, v in (t_.get("thresholds") or {}).items() if k != "why"}
+            typo_rows.append([prof.get("masked_account_ref"), t_.get("type"), t_.get("status"),
+                              t_.get("explanation"), str(th),
+                              "; ".join(t_.get("supporting_transactions") or [])[:120] or "—",
+                              "; ".join(t_.get("alternatives") or []) or "—"])
+    table("Account behaviour patterns (explainable; requires review — not a finding about any person)",
+          ["Account", "Pattern", "State", "What was observed", "Judged against", "Rows", "Ordinary explanations"],
+          typo_rows[:40],
+          [2.4 * cm, 2.6 * cm, 1.8 * cm, 4.4 * cm, 2.4 * cm, 2.2 * cm, 2.8 * cm])
+
+    # Where a path stops, and the record that would continue it. Never "the money stopped".
+    unresolved_paths = [[p_["hop_count"], " → ".join(p_["accounts"]), p_.get("status"),
+                         p_.get("unresolved_reason") or "—", p_.get("resolution_hint") or "—"]
+                        for p_ in report["fund_paths"] if p_.get("status") != "complete"][:25]
+    table("Unresolved path ends and the record that would resolve each",
+          ["Hops", "Accounts", "Status", "Why it stops", "What would resolve it"], unresolved_paths,
+          [1.2 * cm, 6 * cm, 2 * cm, 4.4 * cm, 5 * cm])
+
+    table("Information request drafts (drafted by this system; never transmitted by it)",
+          ["Custodian", "Target", "Records requested", "Window", "Status", "Legal authority"],
+          [[r_["custodian_type"], r_["target_entity"] or r_["target_record"],
+            "; ".join(r_["records_requested"])[:120] or "—",
+            f"{r_['window_from'] or '?'} → {r_['window_to'] or '?'}", r_["status"], r_["legal_authority"]]
+           for r_ in (report.get("evidence_requests") or [])[:30]],
+          [2.4 * cm, 3.4 * cm, 4.6 * cm, 3.4 * cm, 2 * cm, 2.8 * cm])
+
     u = report["unresolved"]
     story.append(Paragraph(f"<b>Unresolved gaps</b>: {u['relationships_requiring_review']} relationships await review; {len(u['parser_warnings'])} parser warnings.", ss["BodyText"]))
     table("Parser warnings", ["File", "Warning"], [[g["file"], g["warning"]] for g in u["parser_warnings"][:80]], [6 * cm, 12 * cm])
+    story.append(Paragraph("<b>Limitations</b>", ss["Heading3"]))
+    for line in report.get("limitations") or [report["disclaimer"]]:
+        story.append(Paragraph(f"• {line}", small))
     story.append(Spacer(1, 10))
     story.append(Paragraph(report["disclaimer"], small))
     doc.build(story)
