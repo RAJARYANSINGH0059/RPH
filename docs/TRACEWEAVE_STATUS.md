@@ -121,3 +121,27 @@ browser end-to-end matrix, CSRF tokens for state-changing browser routes, a shar
 revocation strategy, issuer/audience validation, property-based fund-conservation tests, graph accessibility and
 large-graph performance tests, the storage retention and legal-hold policy, backup and restore procedures, and the
 clean-checkout reproduction by an independent party. None of these should be read as complete.
+
+## v3.0 specification, phases 1–3
+
+| Requirement | Status | Code | Tests | Evidence and limits |
+|---|---|---|---|---|
+| **PDF bank statements into the transaction schema** | PARTIAL | `apps/api/app/parsers/pdf_statement.py`, `app/services/ingestion.py` | `tests/test_pdf_statement.py` (7) | A PDF whose pages carry a statement table is parsed into the same `Transaction` rows as CSV and XLSX, through the same mapping, normalisation and warning path. Two extractions are scored against each other (PyMuPDF `find_tables` and a word-clustering fallback) because `find_tables` splits amount cells on some layouts; the better-scoring one is used and its confidence recorded as a parser warning. Low and medium confidence adds `pdf_statement_low_confidence_needs_review`. **Not COMPLETE:** verified only against the synthetic statement PDFs generated in this repository, not against real bank PDF layouts, and scanned (image-only) statements still need OCR, which is `BLOCKED_EXTERNAL`. |
+| **Explainable mule typologies** | COMPLETE | `apps/api/app/services/typologies.py`, `routers/intel.py`, `apps/web/app/cases/[id]/typologies/page.tsx` | `tests/test_typologies.py` (9) | Seven typologies (rapid in/out, many small credits, round-figure layering, dormant reactivation, repeated counterparties, split and merge, pass-through). Every typology is reported whether or not it triggered; each carries observed values, the published threshold and why that threshold, the transactions that triggered it, the ordinary explanations that fit the same records, and what it cannot see. Dormancy returns `not_enough_history` rather than a result when the statements span less than 90 days. A pass-through ratio above 100% states that money left which did not arrive in the supplied window. No person is labelled, and the account identifier is masked for display. Verified in the browser against a generated case. |
+| **Money trail from the victim's own UTR** | COMPLETE | `apps/api/app/services/utr_trace.py`, `routers/intel.py`, `apps/web/app/cases/[id]/utr-trace/page.tsx` | `tests/test_utr_trace.py` (11) | Search normalises references across spacing, case and separators, and returns every candidate with the file and cell behind it. An ambiguous reference is never resolved automatically: each candidate is shown and the investigator chooses. The trail follows a hop only into an account whose own statement is in the case; every stop is listed with the record that would continue it. Verified in the browser: a messy reference (` syn5-JRF6E8X279K `) matched the row, the trace returned one hop with its source file and row, and one unresolved end naming the statement needed to continue. |
+
+### Not implemented from the v3.0 specification
+
+`NOT_IMPLEMENTED`, and not claimed otherwise anywhere in the product: domain, DNS, RDAP, IP, certificate and
+subdomain intelligence as a v3.0 subsystem (the existing connectors remain `not_configured`); unified correlation
+across the financial and infrastructure sides; combined PDF and Excel reports spanning both; lawful request drafting
+templates; an end-to-end synthetic scenario that exercises PDF and XLSX ingestion together; browser end-to-end tests,
+accessibility checks and performance budgets as automated gates.
+
+### A note on the local development database
+
+A local SQLite database created by `create_all` carries no Alembic stamp, and `create_all` never alters a table that
+already exists. Such a database can therefore be missing a column added by a later migration (here `users.token_epoch`)
+while the test suite passes, because the suite builds its schema from the models each run. The local file was brought
+to head and stamped. This affects development only: the live PostgreSQL database is built by `alembic upgrade head`
+in the start command.

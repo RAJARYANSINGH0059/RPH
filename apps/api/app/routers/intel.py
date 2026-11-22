@@ -17,7 +17,7 @@ from app.models import (AnalysisBranch, AnalysisRun, Case, EvidenceRequest, Hypo
                         SourceFile, User)
 from app.reports.builder import simple_table_pdf
 from app.services import (adversary, audit, bounded_flow, completeness, counterfactual, coverage, dependencies, integrity, intervention, lifecycle, payment_bridge, proof,
-                          resilience, roles, temporal, twin)
+                          resilience, roles, temporal, twin, typologies, utr_trace)
 from app.services import package as package_service
 from app.services.storage import get_storage
 
@@ -753,6 +753,50 @@ def save_view(body: SavedViewIn, case: Case = Depends(get_case_or_404), user: Us
 def list_role_reviews(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
     rows = db.execute(select(RoleReview).where(RoleReview.case_id == case.id).order_by(RoleReview.updated_at.desc())).scalars().all()
     return [{"id": r.id, "account_ref": r.account_ref, "status": r.status, "reviewer_id": r.reviewer_id, "updated_at": r.updated_at.isoformat()} for r in rows]
+
+
+# ------------------------------------------------------------------ victim UTR-rooted money trail
+
+class UtrSearchIn(BaseModel):
+    reference: str | None = Field(default=None, max_length=120)
+    amount_minor: int | None = Field(default=None, ge=0)
+    account_ref: str | None = Field(default=None, max_length=120)
+    on_date: str | None = Field(default=None, max_length=32)
+
+
+@router.post("/utr/search")
+def utr_search(body: UtrSearchIn, case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
+    """Find the transaction a complaint refers to. Every candidate is returned; an ambiguous reference is never
+    resolved automatically, because choosing the wrong origin invents a trail that was never there."""
+    if not any([body.reference, body.amount_minor, body.account_ref, body.on_date]):
+        raise HTTPException(422, "supply at least one of reference, amount_minor, account_ref or on_date")
+    return utr_trace.search(db, case, reference=body.reference, amount_minor=body.amount_minor,
+                            account_ref=body.account_ref, on_date=body.on_date)
+
+
+@router.get("/utr/trace/{transaction_id}")
+def utr_trace_route(transaction_id: str, case: Case = Depends(get_case_or_404), db: Session = Depends(get_db), max_hops: int = 8):
+    """Follow the money from one originating transaction, stopping where the records stop and naming what would
+    continue each unresolved end."""
+    try:
+        return utr_trace.trace(db, case, transaction_id=transaction_id, max_hops=max(1, min(max_hops, 12)))
+    except LookupError as exc:
+        raise HTTPException(404, str(exc))
+
+
+# ------------------------------------------------------------------ account typologies
+
+@router.get("/typologies")
+def case_typologies(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
+    """Every account in the case with the patterns its records show, each carrying its evidence and thresholds."""
+    return typologies.case_profiles(db, case)
+
+
+@router.get("/typologies/{account_ref}")
+def account_typologies(account_ref: str, case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
+    """One account: every typology, triggered or not, with observed values, thresholds, the transactions that
+    triggered it, the ordinary explanations that fit the same records, and what the evidence does not cover."""
+    return typologies.account_profile(db, case, account_ref)
 
 
 # ------------------------------------------------------------------ proof-carrying investigation package

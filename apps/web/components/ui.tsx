@@ -123,6 +123,9 @@ export function Limitations({ items, title = "Limitations" }: { items?: string[]
 
 export function Money({ v }: { v: number | null | undefined }) { return <span className="num">{paise(v)}</span>; }
 export function When({ v }: { v: string | null | undefined }) { return <span className="mono text-xs">{fmtTime(v)}</span>; }
+export function Dir({ v }: { v: string | null | undefined }) {
+  return <span className={`badge ${v === "debit" ? "bg-saffron-soft text-warn" : v === "credit" ? "bg-ok-soft text-ok" : "bg-panel text-ink"}`}>{v || "unknown"}</span>;
+}
 
 /** Primary action bar for the page template: one dominant action, optional secondaries. */
 export function Actions({ primary, children }: { primary?: React.ReactNode; children?: React.ReactNode }) {

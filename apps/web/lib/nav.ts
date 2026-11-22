@@ -26,9 +26,11 @@ const SOURCE: NavGroup[] = [
   ] },
   { key: "financial", num: "03", label: "Financial Intelligence", icon: "money", children: [
     c("transactions", "Transaction Explorer", "Every parsed row with raw text and warnings", "/transactions", "transactions"),
+    c("utr-trace", "Start a Money-Trail Investigation", "Begin from the victim's transaction reference and follow it hop by hop", "/utr-trace"),
     c("money-trail", "Money-Trail Reconstruction", "Reconstructed paths with hop classes and unresolved ends", "/money-trail"),
     c("paths", "Multi-Hop Fund Path", "Path-by-path hop detail with proof export", "/paths"),
     c("accounts", "Account and Beneficiary Analysis", "Per-account features and triage cues", "/accounts"),
+    c("typologies", "Account Typologies", "Patterns each account's records show, with evidence and ordinary explanations", "/typologies"),
     c("splits", "Split and Merged Transfer Analysis", "Where amounts divide or combine", "/splits"),
     c("claims", "Financial Recovery Reconciliation", "Claimed, traced, held, restored, unresolved", "/claims", "claims"),
     c("bounded-flow", "Bounded Fund Provenance", "Feasible min/max attribution under balance constraints", "/bounded-flow"),

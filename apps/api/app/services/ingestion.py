@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models import (Case, Entity, EvidenceItem, EvidenceLevel, ParseRun, Relationship,
                         RelationshipEvidence, SourceFile, Transaction, User, utcnow)
-from app.parsers import common, documents, indicators, tabular, technical_json
+from app.parsers import common, documents, indicators, pdf_statement, tabular, technical_json
 from app.services import audit
 from app.services.storage import get_storage, sha256_bytes
 
@@ -119,6 +119,15 @@ def ingest_upload(db: Session, case: Case, user: User, filename: str, data: byte
     try:
         if kind in {"csv", "xlsx"}:
             run, preview = _ingest_statement(db, case, sf, file_entity, data, kind, initial_warnings, mapping_override)
+        elif kind == "pdf" and (pdf_stmt := pdf_statement.extract(data, settings.max_pdf_pages)).is_statement:
+            # A PDF holding a transaction ledger becomes transactions, not merely extracted text.
+            extra = list(pdf_stmt.warnings) + [f"pdf_statement_extraction_confidence:{pdf_stmt.confidence}"]
+            if pdf_stmt.confidence in {"low", "medium"}:
+                extra.append("pdf_statement_low_confidence_needs_review")
+            run, preview = _ingest_statement(db, case, sf, file_entity, data, kind, initial_warnings + extra,
+                                             mapping_override, parsed=pdf_stmt.tabular, parser_name=pdf_statement.PARSER_NAME)
+            preview = {**preview, "pdf_statement": {"confidence": pdf_stmt.confidence,
+                                                    "pages_examined": pdf_stmt.pages_examined, **pdf_stmt.account_hints}}
         elif kind == "json":
             run, preview = _ingest_technical_json(db, case, sf, file_entity, data, initial_warnings)
         else:
@@ -153,9 +162,18 @@ def _cell_locator(sheet: str | None, row_idx: int, headers: list[str], header: s
 
 
 def _ingest_statement(db: Session, case: Case, sf: SourceFile, file_entity: Entity, data: bytes, kind: str,
-                      warnings: list[str], mapping_override: dict[str, str] | None) -> tuple[ParseRun, dict]:
-    parsed = tabular.parse_csv_bytes(data) if kind == "csv" else tabular.parse_xlsx_bytes(data)
-    parser_name = tabular.PARSER_NAME_CSV if kind == "csv" else tabular.PARSER_NAME_XLSX
+                      warnings: list[str], mapping_override: dict[str, str] | None,
+                      parsed: tabular.TabularResult | None = None, parser_name: str | None = None) -> tuple[ParseRun, dict]:
+    """Normalise a statement into transactions.
+
+    `parsed` lets a caller supply a table it has already extracted, which is how a PDF statement joins this path: the
+    column mapping, money and date parsing, duplicate detection, balance reconciliation and locators below are then
+    identical whether the rows came from a spreadsheet or from a page of a PDF.
+    """
+    if parsed is None:
+        parsed = tabular.parse_csv_bytes(data) if kind == "csv" else tabular.parse_xlsx_bytes(data)
+    if parser_name is None:
+        parser_name = tabular.PARSER_NAME_CSV if kind == "csv" else tabular.PARSER_NAME_XLSX
     mapping, unmapped = common.guess_column_mapping(parsed.headers)
     if mapping_override:
         for k, v in mapping_override.items():
