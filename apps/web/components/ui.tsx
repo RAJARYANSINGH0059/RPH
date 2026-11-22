@@ -15,7 +15,7 @@ function Waiting() {
   return (
     <div className="space-y-2" role="status" aria-label="Loading">
       <div className="skeleton h-10" /><div className="skeleton h-24" /><div className="skeleton h-24" />
-      {secs >= 4 && <p className="text-xs muted">Waiting for the analysis API ({secs}s). Free-plan services sleep when idle, so the first request after a pause can take up to a minute.</p>}
+      {secs >= 4 && <p className="text-xs muted" role="status">Waiting for the analysis API ({secs}s). Free-plan services sleep when idle; the request is being retried automatically and the page will fill in once it wakes.</p>}
     </div>
   );
 }

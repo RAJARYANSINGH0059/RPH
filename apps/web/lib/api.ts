@@ -29,6 +29,10 @@ export function setCaseContext(c: { id: string; title: string } | null) {
   try { if (c) window.localStorage.setItem(CASE_KEY, JSON.stringify(c)); else window.localStorage.removeItem(CASE_KEY); window.dispatchEvent(new Event("ps05x:case")); } catch { /* ignore */ }
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Jittered backoff: 1s, 2s, 4s, 8s, then 10s, so a cold start is ridden out without hammering the API. */
+const backoff = (attempt: number) => Math.round([1000, 2000, 4000, 8000, 10000][Math.min(attempt, 4)] * (0.75 + Math.random() * 0.5));
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) { super(message); this.status = status; }
@@ -105,11 +109,22 @@ export async function api<T = any>(path: string, init: RequestInit & { raw?: boo
 async function request<T = any>(path: string, init: RequestInit & { raw?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
   if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  let res: Response;
-  try {
-    res = await fetch(`/api/proxy${path}`, { ...init, headers, credentials: "same-origin", cache: "no-store" });
-  } catch {
-    throw new ApiError(0, "Cannot reach the application server. Check your connection and try again.");
+  // A sleeping free-plan API answers 503 (or the platform answers 504) until it has woken. Those are transient, so a
+  // read is retried with jittered backoff inside a budget rather than reported as a failure the person must act on.
+  const retryable = (status: number) => status === 503 || status === 504 || status === 502;
+  const isRead = (init.method || "GET").toUpperCase() === "GET";
+  const deadline = Date.now() + (isRead ? 70_000 : 20_000);
+  let res!: Response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(`/api/proxy${path}`, { ...init, headers, credentials: "same-origin", cache: "no-store" });
+    } catch {
+      if (!isRead || Date.now() >= deadline) throw new ApiError(0, "Cannot reach the application server. Check your connection and try again.");
+      await sleep(backoff(attempt));
+      continue;
+    }
+    if (!retryable(res.status) || Date.now() >= deadline) break;
+    await sleep(backoff(attempt));
   }
   if (res.status === 401) onUnauthorised();
   if (!res.ok) throw new ApiError(res.status, await readError(res));

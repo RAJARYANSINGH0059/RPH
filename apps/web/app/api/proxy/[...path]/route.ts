@@ -3,7 +3,15 @@ import { apiBase, sessionToken } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;  // the API runs on a free plan that can take 30-60 s to wake
+export const maxDuration = 60;
+
+/** How long to wait on the API before answering the browser.
+ *
+ * The API runs on a free plan that sleeps when idle and takes 30-60 s to wake. Holding the request until the platform
+ * kills the function produced a bare 504 with no body, which the interface could only report as "Could not load".
+ * Waiting a bounded time and answering 503 with a reason instead lets the client retry on its own, so the first page
+ * after a sleep recovers rather than failing. */
+const UPSTREAM_TIMEOUT_MS = 25_000;
 
 const HOP = new Set(["connection", "keep-alive", "transfer-encoding", "content-encoding", "content-length", "host"]);
 
@@ -24,9 +32,16 @@ async function handle(req: Request, ctx: { params: Promise<{ path: string[] }> }
   const body = method === "GET" || method === "HEAD" ? undefined : Buffer.from(await req.arrayBuffer());
   let upstream: Response;
   try {
-    upstream = await fetch(target, { method, headers, body, cache: "no-store", redirect: "manual" });
-  } catch {
-    return NextResponse.json({ detail: "API unreachable (it may be waking up). Retry in a few seconds." }, { status: 503 });
+    upstream = await fetch(target, { method, headers, body, cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  } catch (err: any) {
+    const waking = err?.name === "TimeoutError" || err?.name === "AbortError";
+    return NextResponse.json({
+      detail: waking
+        ? "The analysis API did not answer in time. Free-plan services sleep when idle and can take up to a minute to wake; this request will be retried."
+        : "The analysis API is not reachable right now.",
+      waking,
+      retryable: true,
+    }, { status: 503, headers: { "retry-after": "5" } });
   }
   const out = new Headers();
   upstream.headers.forEach((v, k) => { if (!HOP.has(k.toLowerCase())) out.set(k, v); });
