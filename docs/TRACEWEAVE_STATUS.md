@@ -93,6 +93,27 @@ Token scope:
 
 The API readiness pill was confirmed showing its state on the live web application.
 
+## Live verification, second pass
+
+Against the deployed API and web application, after both tiers were redeployed:
+
+| Check | Result |
+|---|---|
+| download token bound to case A, on case A `report.pdf` | 200 |
+| same token on case B `report.pdf` | 403 |
+| same token on an ordinary case read | 403 |
+| token signed with another key and issuer | 401 |
+| no token | 401 |
+| browser: short token minted with `case_id`, own case vs other case | 200 vs 403 |
+| browser: one-click demo to workspace | reaches `/overview`, no error alerts, readiness pill shows ready |
+
+Backend suite after this pass: **131 passed** (119 before). Web typecheck, lint and build clean; navigation check
+7 groups, 74 feature routes, 3 utility, 0 problems.
+
+Not yet observed live: recovery from a genuine cold start. The code path (proxy answers 503 with a reason after 25 s,
+client retries reads with jittered backoff inside 70 s) is implemented and deployed, but the instance did not sleep
+during this session, so it is recorded as PARTIAL rather than claimed.
+
 ## Not addressed in this pass
 
 The specification is much larger than these defects. Untouched here, and therefore unchanged in status: the full
