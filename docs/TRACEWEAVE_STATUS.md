@@ -232,3 +232,13 @@ No provider was exercised live, so nothing in this phase is verified against a r
 Every adapter reports `not_configured`, which is the honest state: `live` means a real request succeeded in this
 process, and none has. The record parsing, the bootstrap selection, the field extraction, the typed mapping and
 the address checks are tested against fixtures and a fake resolver, which proves the logic and not the providers.
+
+### Live verification of Phase 4 (2026-11-22)
+
+Deployed from this machine: API `dep-dc1c97uc6qcc73af4sj0` live with `migrations: applied`; web deployment
+`rph-dsk38daou`. `GET /api/cases/{id}/infrastructure` on a freshly generated case returned three domains and
+three addresses read from that case's own observations, the six record types named with `AAAA`, `CNAME`, `MX`,
+`NS` and `TXT` reported as **not asked** rather than as absent, relationship counts of `RESOLVES_TO` 7,
+`HOSTED_ON` 3 and `SHARED_INFRASTRUCTURE` 1 (candidate, with counter-evidence), nine providers reported
+`not_configured`, **no provider reporting `live`**, and six limitations attached. Warmed production page load:
+`/cases/{id}/infra/records` 751 ms.
