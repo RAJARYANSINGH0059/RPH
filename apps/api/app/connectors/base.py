@@ -75,10 +75,23 @@ def assert_safe_url(url: str, allowed_hosts: set[str]) -> None:
     host = (p.hostname or "").lower()
     if host not in allowed_hosts:
         raise ValueError(f"Host {host} not in connector allowlist")
+    assert_public_host(host)
+
+
+def assert_public_host(host: str) -> None:
+    """Every address the host resolves to must be public.
+
+    Separated from the allowlist check because RDAP cannot use a fixed allowlist: the authoritative server for a
+    TLD or an address block is whatever IANA's registry names, and that list changes without us. The host still
+    has to resolve entirely to public addresses, so a registry entry (or a redirect) pointing at a private or
+    cloud-metadata address is refused.
+    """
     try:
         infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
     except socket.gaierror as exc:
         raise ValueError(f"DNS resolution failed for {host}: {exc}")
+    if not infos:
+        raise ValueError(f"No address for {host}")
     for info in infos:
         if is_blocked_ip(info[4][0]):
             raise ValueError("Provider host resolves to a blocked address range")
@@ -96,18 +109,57 @@ class SafeHttp:
         self._last_call = 0.0
         self.min_interval = 0.5  # rate limit: 2 req/s per connector
 
-    def get_json(self, url: str, headers: dict | None = None, method: str = "GET", data: dict | None = None) -> dict:
+    _REDIRECTS = {301, 302, 303, 307, 308}
+
+    def _throttle(self) -> None:
+        wait = self.min_interval - (time.time() - self._last_call)
+        if wait > 0:
+            time.sleep(wait)
+        self._last_call = time.time()
+
+    def _check(self, url: str, extra_hosts: set[str] | None, any_public_host: bool) -> None:
+        """Validate one URL before it is requested, including each hop of a redirect chain."""
+        if any_public_host:
+            p = urlparse(url)
+            if p.scheme != "https":
+                raise ValueError("Only https provider URLs are permitted")
+            assert_public_host((p.hostname or "").lower())
+        else:
+            assert_safe_url(url, self.allowed_hosts | (extra_hosts or set()))
+
+    def request_raw(self, url: str, headers: dict | None = None, method: str = "GET", data: dict | None = None,
+                    *, extra_hosts: set[str] | None = None, any_public_host: bool = False,
+                    max_redirects: int = 0) -> httpx.Response:
+        """One request, with every redirect hop re-validated rather than trusted.
+
+        httpx is kept on `follow_redirects=False` so no hop escapes the address checks: a provider that redirects
+        to a private address, to plain http, or around a chain without end is refused at the hop that does it.
+        """
+        seen = 0
+        target = url
+        while True:
+            self._check(target, extra_hosts, any_public_host)
+            self._throttle()
+            with httpx.Client(timeout=self.timeout, follow_redirects=False) as client:
+                resp = client.request(method, target, headers={"User-Agent": "ps05x-connector/0.1", **(headers or {})}, data=data)
+            if resp.status_code in self._REDIRECTS and resp.headers.get("location"):
+                if seen >= max_redirects:
+                    raise ValueError(f"Redirect limit reached at {resp.status_code} (hops allowed: {max_redirects})")
+                seen += 1
+                target = str(httpx.URL(target).join(resp.headers["location"]))
+                method, data = "GET", None   # a redirected POST is not replayed as a POST
+                continue
+            return resp
+
+    def get_json(self, url: str, headers: dict | None = None, method: str = "GET", data: dict | None = None,
+                 *, extra_hosts: set[str] | None = None, any_public_host: bool = False,
+                 max_redirects: int = 0) -> dict:
         key = f"{method}:{url}:{sorted((data or {}).items())}"
         now = time.time()
         if key in self._cache and now - self._cache[key][0] < self.cache_ttl:
             return self._cache[key][1]
-        assert_safe_url(url, self.allowed_hosts)
-        wait = self.min_interval - (now - self._last_call)
-        if wait > 0:
-            time.sleep(wait)
-        self._last_call = time.time()
-        with httpx.Client(timeout=self.timeout, follow_redirects=False) as client:
-            resp = client.request(method, url, headers={"User-Agent": "ps05x-connector/0.1", **(headers or {})}, data=data)
+        resp = self.request_raw(url, headers, method, data, extra_hosts=extra_hosts,
+                                any_public_host=any_public_host, max_redirects=max_redirects)
         ct = resp.headers.get("content-type", "")
         if "json" not in ct:
             raise ValueError(f"Unexpected content-type {ct}")
@@ -117,6 +169,16 @@ class SafeHttp:
         payload = resp.json()
         self._cache[key] = (time.time(), payload)
         return payload
+
+    def get_text(self, url: str, headers: dict | None = None, *, extra_hosts: set[str] | None = None,
+                 any_public_host: bool = False, max_redirects: int = 0) -> str:
+        """For providers that publish a plain-text list rather than JSON."""
+        resp = self.request_raw(url, headers, "GET", None, extra_hosts=extra_hosts,
+                                any_public_host=any_public_host, max_redirects=max_redirects)
+        if len(resp.content) > self.max_bytes:
+            raise ValueError("Response too large")
+        resp.raise_for_status()
+        return resp.text
 
 
 def now_utc() -> datetime:

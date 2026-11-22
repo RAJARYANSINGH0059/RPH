@@ -36,6 +36,7 @@ const SOURCE: NavGroup[] = [
     c("bounded-flow", "Bounded Fund Provenance", "Feasible min/max attribution under balance constraints", "/bounded-flow"),
   ] },
   { key: "cyber", num: "04", label: "Cyber Infrastructure Intelligence", icon: "globe", children: [
+    c("records", "Domain, DNS and Address Records", "Every record type asked, the answer or why there was none", "/infra/records"),
     c("domains", "Domain Intelligence", "Domains named or observed in the case", "/infra/domains"),
     c("dns", "DNS Observations", "Dated resolutions with validity windows", "/infra/dns"),
     c("pdns", "Historical DNS / Passive DNS", "What is historical, what is current-only", "/infra/passive-dns"),

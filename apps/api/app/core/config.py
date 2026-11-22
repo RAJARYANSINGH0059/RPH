@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     misp_url: str = Field(default="", alias="MISP_URL")
     misp_key: str = Field(default="", alias="MISP_KEY")
     connector_timeout_seconds: float = Field(default=6.0, alias="CONNECTOR_TIMEOUT_SECONDS")
+    # Certificate Transparency search. Off by default: a provider is only ever reported live once a real request
+    # has succeeded in this process, and leaving it off keeps the deployed status honest until it is exercised.
+    enable_ct: bool = Field(default=False, alias="ENABLE_CT")
+    # Historical passive DNS needs a licensed provider. With no URL and key the adapter reports not_configured,
+    # and dated historical observations can still be supplied through the technical-observations JSON path.
+    passive_dns_url: str = Field(default="", alias="PASSIVE_DNS_URL")
+    passive_dns_key: str = Field(default="", alias="PASSIVE_DNS_KEY")
+    # The Tor Project publishes its exit-node list for exactly this purpose. A listing says an address was an
+    # exit node when the list was read; it says nothing about who used it.
+    enable_tor_exit_list: bool = Field(default=False, alias="ENABLE_TOR_EXIT_LIST")
 
     # Benchmark namespace (sealed truth). Analyst API never reads this.
     benchmark_store_dir: str = Field(default=str(API_ROOT / "data" / "sealed"), alias="BENCHMARK_STORE_DIR")

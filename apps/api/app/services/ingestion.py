@@ -502,6 +502,28 @@ def _ingest_technical_json(db: Session, case: Case, sf: SourceFile, file_entity:
         if "current" in src_label.lower() or "current lookup" in note_txt or "current-only" in note_txt:
             base_lims.append("current_lookup_not_historical")
             ev.quality_flags = list(ev.quality_flags or []) + ["current_lookup_not_historical"]
+
+        # A certificate, a reverse-DNS name, an allocation, a discovered name, a dated historical record, or a
+        # DNS observation that names a record type other than A, all go through the same typed mapping the
+        # connectors use. Imported here rather than at module scope because that module builds its relationships
+        # with this one's helpers.
+        from app.services import infra_graph
+
+        shaped = technical_json.to_graph_observation(obs) or technical_json.supplied_record_set(obs)
+        if shaped is not None:
+            # The evidence keeps the type the case supplied and also the shape it was read as, so a reader can
+            # see both what the file said and how it was interpreted, and so the infrastructure view reads one
+            # shape whether the observation was supplied as evidence or fetched from a provider.
+            ev.normalised_value = {"type": obs.obs_type, "graph_type": shaped[0], **shaped[1]}
+            built = infra_graph.record(db, case, shaped[0], shaped[1], evidence_ids=[ev.id],
+                                       observed_at=observed, provider=str(provider or src_label),
+                                       limitations=base_lims)
+            if built:
+                counts[f"{obs.obs_type}_relationships"] = counts.get(f"{obs.obs_type}_relationships", 0) + len(built)
+                continue
+            obs.warnings.append("observation_carried_no_relationship_only_evidence_was_stored")
+            ev.quality_flags = list(ev.quality_flags or []) + ["observation_carried_no_relationship"]
+
         if obs.obs_type == "dns" and domain and ip:
             d_ent = get_or_create_entity(db, case.id, "domain", str(domain).lower(), None, None, observed)
             ip_ent = get_or_create_entity(db, case.id, "ip", str(ip), None, {"classification": indicators.ip_classification(str(ip))}, observed)

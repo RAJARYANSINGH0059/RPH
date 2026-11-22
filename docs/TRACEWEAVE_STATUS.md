@@ -176,3 +176,59 @@ debit displayed as `CONTRADICTED`, an exact reference match as `CORROBORATED`, a
 corroborated evidence. Each badge now states what it means. A precision badge also fired on every row, because the
 vocabulary is `second|minute|day|month|unknown|ambiguous` and the check compared against a non-existent `exact`;
 it now flags only genuinely imprecise timestamps.
+
+## v6 specification, Phase 4 — infrastructure intelligence
+
+Branch `feat/ps05-infra-intelligence`, cut from `main` at `f5df682`. Baseline before the work: 189 backend tests
+passing, clean web build, clean working tree.
+
+### What the audit said, verified against the source on this branch
+
+Both findings were confirmed by reading the code, not carried over from the audit text:
+
+- `DnsConnector._fetch_one` queried `A` and only `A`, while the adapter's own attribution string promised
+  "A/AAAA/CNAME". The screen offered DNS intelligence and the code asked one question.
+- `RdapConnector` asked `rdap.org`, which answers with a redirect to the authoritative server, and the fixed host
+  allowlist could not follow it. A real lookup therefore returned `redirect_not_followed` and no registration
+  data at all. Expiry, registrar name and IANA ID were never extracted.
+
+| Requirement | Status | Code | Tests | Evidence and limits |
+|---|---|---|---|---|
+| **Full DNS record coverage** (`A`, `AAAA`, `CNAME`, `MX`, `NS`, `TXT`) | COMPLETE | `app/connectors/dns_records.py`, `connectors/adapters.py` | `tests/test_infra_intelligence.py` | Every requested type is reported, including the ones that returned nothing. `nodata`, `nxdomain`, `timeout`, `no_nameservers` and `resolver_error` are kept distinct and each carries a meaning the UI quotes, because "no MX record" and "the resolver timed out" must never look the same to a reader. Each record type is read on its own terms: an MX preference is kept, and a TXT record's several strings are not joined. TTL bounds reuse from the observation time and is labelled as that, not as a validity proof. |
+| **Reverse DNS (PTR), both families** | COMPLETE | `dns_records.query_ptr`, `services/infra_graph.py` | same | `in-addr.arpa` and `ip6.arpa` names are built for IPv4 and IPv6; the result is filed against the address, not the domain. Carries the limitation that a PTR name is published by whoever holds the address block. |
+| **IPv6 indicators** | COMPLETE | `app/parsers/indicators.py` | same | Addresses of both families are extracted from free text, including bracketed forms with a port. Candidates are validated by the standard library rather than by a regex that would accept a time or a ratio. `2001:db8::/32` is recognised as the IPv6 documentation range, so synthetic fixtures are never looked up. A pre-existing ordering bug was fixed in passing: `is_private` was tested before `is_link_local`, which made the narrower label unreachable and reported "private" for every link-local address. |
+| **RDAP registration** | COMPLETE | `app/connectors/rdap_bootstrap.py` | same | The IANA bootstrap registry (RFC 7484) names the authoritative server for a TLD, so the request goes straight there and `redirect_not_followed` is gone. Registration, expiry, last-changed, registrar name, registrar IANA ID, status, nameservers, delegation signing and redaction state are extracted; a field the registry does not supply stays absent, and a withheld registrant is reported as withheld. |
+| **IP allocation and ASN** | COMPLETE | `rdap_bootstrap.ip_fields`, `IpRdapConnector` | same | The most specific block in the registry decides which RIR is asked. Prefix, network name and type, country, allocation dates, holding organisation and the originating AS where the registry supplies it. Every result says the holder of a range is not the subscriber and not a person's location. |
+| **Certificate Transparency and SAN subdomains** | PARTIAL | `app/connectors/certs.py` | same | Issuer, common name, SANs, validity window, serial and log entry time are parsed, and validity state is computed from the certificate's own window. SAN names inside the domain become candidate `HAS_SUBDOMAIN` edges labelled as discovered names that this system has not resolved; names outside it become candidate `SHARES_CERTIFICATE` edges carrying the ordinary platform and CDN explanations. A wildcard stays a wildcard rather than being expanded into names nobody observed. This source supplies no SHA-256 fingerprint, so none is invented and the field says so. **Not COMPLETE:** `ENABLE_CT` is off and no live request has been made, so the adapter is `not_configured` rather than verified against the provider. |
+| **Historical passive DNS** | BLOCKED_EXTERNAL | `PassiveDnsConnector`, `parsers/technical_json.py`, `services/infra_graph.py` | same | The adapter, its request shape and its normalised result exist and the mapping is tested, but it needs a licensed provider: with no `PASSIVE_DNS_URL` and key it reports `not_configured` and says what configuring it would take. Dated historical observations enter through the supplied-observation path instead, which now accepts `passive_dns` / `historical_dns` and keeps the provider's own first-seen and last-seen as the relationship's validity window. Nothing is ever reconstructed from a current lookup. |
+| **VPN / proxy / Tor indicators** | PARTIAL | `NetworkClassificationConnector` | same | The Tor Project publishes its exit list for this purpose, so that check is implemented behind `ENABLE_TOR_EXIT_LIST`, off by default. A listing is recorded as a statement about the address, with the limitation that an exit node carries other people's traffic by design and a negative result means only that the list did not contain the address when read. No VPN or proxy provider is configured and the adapter says so rather than leaving a blank. |
+| **Typed relationships per record type** | COMPLETE | `app/services/infra_graph.py` | same | A record becomes the edge it means: `RESOLVES_TO` for an address record, `ALIAS_OF` for a CNAME, `MAIL_EXCHANGE` for an MX, `USES_NAMESERVER` for an NS, `REVERSE_DNS` for a PTR, `ALLOCATED_TO` and `ANNOUNCED_BY` for allocation, `REGISTERED_WITH` for registration, `NAMED_IN_CERTIFICATE`, `HAS_SUBDOMAIN` and `SHARES_CERTIFICATE` for certificates. A TXT record names no second entity and creates no edge. A record type that did not answer creates no edge at all. Shared nameservers, autonomous systems, registrars and certificates arrive as candidates with their alternatives; no path in this code can produce `COMMON_OPERATOR`, which remains confined to the benchmark baseline. |
+| **Supplied observations for the same shapes** | COMPLETE | `app/parsers/technical_json.py`, `services/ingestion.py` | same | `certificate`, `ptr`, `asn`, `passive_dns`, `historical_dns` and `subdomain` are accepted, and a `dns` observation that names a record type other than `A` is now read as that type instead of as a resolution. Supplied and fetched observations go through one mapping, so they become the same kind of edge with the same limitations. The evidence records both the type the file declared and the shape it was read as. |
+| **Infrastructure workspace** | COMPLETE | `GET /api/cases/{id}/infrastructure`, `app/services/infra_view.py`, `apps/web/app/cases/[id]/infra/records/page.tsx` | same | Built from stored evidence rather than recomputed, so the page, the graph and the report agree. Per domain: which record types were asked, which answered, which were never asked, the values, TTL, read time, reuse window and resolver, plus registration and certificate-derived names. Per address: allocation, reverse DNS, hosting, classification and the domains seen there. Current and dated historical observations are shown in separate places. Providers that are not configured are listed as such. The earlier observation shapes a case already holds are read too, so the page is not blank for cases recorded before this work. |
+
+### Outbound safety, unchanged in substance
+
+The bootstrap registry replaces the fixed allowlist for RDAP, not the address checks. A host named by the registry
+is still resolved and still refused if it points anywhere private, loopback, link-local, multicast, reserved or at
+cloud metadata, and so is every redirect hop: `follow_redirects` stays off and each hop is validated before it is
+requested, with a cap of three. A redirected POST is not replayed as a POST. Tests cover a redirect towards a
+private address and an endless chain. Reserved names (`.test`, `.example`, `.invalid`, `.localhost`, `.local`,
+and `example.com`) and both families' documentation ranges are never looked up, which is where every synthetic
+fixture lives.
+
+### Tests
+
+`python -m pytest -q` from `apps/api`: **226 passed** (189 before this phase, 37 added). `npx tsc --noEmit` clean.
+`node --experimental-strip-types scripts/check-nav.mjs`: 7 groups, 77 feature routes, 0 problems.
+
+Verified in a browser against an existing synthetic case: the page read that case's own observations, showed its
+single domain with the `A` record answered and the other five record types marked not asked, the address with its
+documentation classification, all ten providers as `not_configured` or `mock`, and the relationship counts the
+graph actually holds.
+
+### What Phase 4 does not claim
+
+No provider was exercised live, so nothing in this phase is verified against a real registry, resolver or log.
+Every adapter reports `not_configured`, which is the honest state: `live` means a real request succeeded in this
+process, and none has. The record parsing, the bootstrap selection, the field extraction, the typed mapping and
+the address checks are tested against fixtures and a fake resolver, which proves the logic and not the providers.

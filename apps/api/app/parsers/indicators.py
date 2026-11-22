@@ -1,4 +1,8 @@
-"""Regex extraction of cyber/financial indicators from free text. Indicators are stored as strings; never visited."""
+"""Extraction of cyber and financial indicators from free text.
+
+Indicators are stored as strings and are never visited by this module. Addresses of both families are
+recognised, because a complaint that quotes an IPv6 address should not silently lose it.
+"""
 from __future__ import annotations
 
 import ipaddress
@@ -8,6 +12,11 @@ from dataclasses import dataclass
 URL_RE = re.compile(r"\bhttps?://[^\s<>\"')\]]+", re.I)
 DOMAIN_RE = re.compile(r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,24})\b", re.I)
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# IPv6 is matched in two stages rather than with one expression. A single regex that accepts every valid form
+# (compressed runs, an embedded IPv4 tail, a zone or prefix suffix) and rejects every invalid one is unreadable
+# and still wrong at the edges, so candidate runs are found loosely and then validated by the standard library,
+# which is the only authority on whether a string is an address.
+_IPV6_CANDIDATE = re.compile(r"\[?[0-9A-Fa-f:]{2,}(?::[0-9A-Fa-f]{1,4})?(?:\.\d{1,3}){0,3}\]?")
 EMAIL_RE = re.compile(r"\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b", re.I)
 VPA_RE = re.compile(r"\b[a-z0-9._-]{2,}@[a-z]{2,}(?:bank|upi|pay|axis|ybl|okicici|okhdfcbank|oksbi|paytm|ibl|apl|fictbank|testpay)?\b", re.I)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+91[\s-]?)?[6-9]\d{9}(?!\d)")
@@ -29,6 +38,33 @@ class Indicator:
 def _domain_from_url(url: str) -> str | None:
     m = re.match(r"https?://([^/:?#]+)", url, re.I)
     return m.group(1).lower() if m else None
+
+
+def _ipv6_candidates(text: str):
+    """Yield (address, span) for every substring the standard library accepts as an IPv6 address.
+
+    A candidate is trimmed from the right while it fails to parse, so an address followed by punctuation, a port
+    or a prefix length is still recognised as the address it contains.
+    """
+    for m in _IPV6_CANDIDATE.finditer(text):
+        token = m.group(0)
+        start = m.start()
+        if token.startswith("["):
+            token, start = token[1:], start + 1
+        token = token.split("]")[0]
+        if token.count(":") < 2:
+            continue                      # one colon is a time, a port or a label, not a compressed address
+        for end in range(len(token), 1, -1):
+            cut = token[:end].rstrip(":")
+            if cut.count(":") < 2:
+                break
+            try:
+                addr = ipaddress.ip_address(cut)
+            except ValueError:
+                continue
+            if addr.version == 6:
+                yield str(addr), (start, start + len(cut))
+            break
 
 
 def extract_indicators(text: str) -> list[Indicator]:
@@ -53,6 +89,8 @@ def extract_indicators(text: str) -> list[Indicator]:
             add("ip", m.group(0), m.span())
         except ValueError:
             continue
+    for value, span in _ipv6_candidates(text):
+        add("ip", value, span)
     for m in EMAIL_RE.finditer(text):
         add("email", m.group(0).lower(), m.span())
     for m in VPA_RE.finditer(text):
@@ -91,14 +129,22 @@ def ip_classification(ip: str) -> str:
                 return "documentation"  # checked first: Python's is_private also covers these RFC 5737 ranges
         if a in ipaddress.ip_network("169.254.169.254/32"):
             return "metadata"
+    else:
+        # 2001:db8::/32 is the IPv6 documentation range (RFC 3849), the counterpart of the IPv4 ranges above.
+        # Synthetic fixtures live here, so it is recognised before is_private and never looked up.
+        if a in ipaddress.ip_network("2001:db8::/32"):
+            return "documentation"
+    # Order matters here, because the standard library's categories overlap: a link-local address is also
+    # private, and so is a loopback address. Testing is_private first made the narrower labels unreachable and
+    # told the reader "private" about an address whose actual category explains far more.
     if a.is_loopback:
         return "loopback"
-    if a.is_private:
-        return "private"
     if a.is_link_local:
         return "link_local"
     if a.is_multicast:
         return "multicast"
+    if a.is_private:
+        return "private"
     if a.is_reserved:
         return "reserved"
     return "public"

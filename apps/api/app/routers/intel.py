@@ -16,7 +16,7 @@ from app.db.session import get_db
 from app.models import (AnalysisBranch, AnalysisRun, Case, EvidenceRequest, Hypothesis, IndependentReview, InvestigationEvent, PaymentInstruction, Relationship, Role, RoleReview,
                         SourceFile, User)
 from app.reports.builder import simple_table_pdf
-from app.services import (adversary, audit, bounded_flow, completeness, counterfactual, coverage, dependencies, integrity, intervention, lifecycle, payment_bridge, proof,
+from app.services import (adversary, audit, bounded_flow, completeness, counterfactual, coverage, dependencies, infra_view, integrity, intervention, lifecycle, payment_bridge, proof,
                           resilience, roles, temporal, twin, typologies, utr_trace)
 from app.services import package as package_service
 from app.services.storage import get_storage
@@ -161,6 +161,16 @@ def instructions_pdf(case: Case = Depends(get_case_or_404), user: User = Depends
 @router.get("/coverage")
 def coverage_report(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
     return coverage.coverage_report(db, case)
+
+
+@router.get("/infrastructure")
+def infrastructure(case: Case = Depends(get_case_or_404), db: Session = Depends(get_db)):
+    """Domain, DNS, registration, address, certificate and historical evidence this case holds, record by record.
+
+    Read-only and built from stored evidence, so it agrees with the graph rather than recomputing it. Record types
+    that returned nothing appear with the reason; providers that are not configured appear as not configured.
+    """
+    return infra_view.report(db, case)
 
 
 @router.get("/integrity")
