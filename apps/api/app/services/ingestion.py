@@ -117,7 +117,33 @@ def ingest_upload(db: Session, case: Case, user: User, filename: str, data: byte
         initial_warnings.append(f"duplicate_file_already_uploaded:{dup.id}")
 
     try:
-        if kind in {"csv", "xlsx"}:
+        if kind == "xlsx" and mapping_override is None:
+            # A workbook may open on a cover page, or hold one account per sheet. Reading only the first sheet
+            # and warning about the rest discarded whole statements, so each statement-shaped sheet is ingested.
+            sheets = tabular.parse_xlsx_all_sheets(data, settings.max_rows_per_file) \
+                if hasattr(settings, "max_rows_per_file") else tabular.parse_xlsx_all_sheets(data)
+            statement_sheets = [sh for sh in sheets if tabular.looks_like_statement(sh)]
+            if len(statement_sheets) > 1 or (statement_sheets and statement_sheets[0].sheet != sheets[0].sheet):
+                skipped = [sh.sheet for sh in sheets if sh not in statement_sheets]
+                note = [f"worksheets_ingested:{','.join(sh.sheet or '?' for sh in statement_sheets)}"]
+                if skipped:
+                    note.append(f"worksheets_without_a_transaction_table:{','.join(x or '?' for x in skipped)}")
+                run, preview = None, {}
+                for i, sheet in enumerate(statement_sheets):
+                    r_, p_ = _ingest_statement(db, case, sf, file_entity, data, kind,
+                                               initial_warnings + note if i == 0 else list(note),
+                                               None, parsed=sheet, parser_name=tabular.PARSER_NAME_XLSX)
+                    if run is None:
+                        run, preview = r_, p_
+                    else:
+                        preview = {**preview,
+                                   "transactions": preview.get("transactions", 0) + p_.get("transactions", 0),
+                                   "additional_sheets": (preview.get("additional_sheets") or []) + [
+                                       {"sheet": sheet.sheet, "parse_run_id": r_.id, **{k: v for k, v in p_.items()
+                                                                                        if k in ("transactions", "rows")}}]}
+            else:
+                run, preview = _ingest_statement(db, case, sf, file_entity, data, kind, initial_warnings, mapping_override)
+        elif kind in {"csv", "xlsx"}:
             run, preview = _ingest_statement(db, case, sf, file_entity, data, kind, initial_warnings, mapping_override)
         elif kind == "pdf" and (pdf_stmt := pdf_statement.extract(data, settings.max_pdf_pages)).is_statement:
             # A PDF holding a transaction ledger becomes transactions, not merely extracted text.
@@ -195,11 +221,18 @@ def _ingest_statement(db: Session, case: Case, sf: SourceFile, file_entity: Enti
     db.add(run)
     db.flush()
 
+    # Where a statement carries no account column, the holder is inferred from the file. A workbook holding one
+    # account per worksheet would then give every sheet the same inferred holder, merging two accounts into one
+    # and corrupting the trail that runs between them, so the sheet is part of the identity.
+    sheet_name = (parsed.sheet or "").strip()
     statement_account_default = f"STATEMENT:{sf.sha256[:10]}"
+    if sheet_name:
+        statement_account_default += f":{sheet_name}"
     if "account" not in mapping:
-        warnings.append("account_column_absent_statement_holder_inferred_from_file")
+        warnings.append("account_column_absent_statement_holder_inferred_from_file"
+                        + (f"_and_sheet:{sheet_name}" if sheet_name else ""))
 
-    counts = {"transactions": 0, "missing_amount": 0, "ambiguous_dates": 0, "duplicates": 0}
+    counts = {"transactions": 0, "missing_amount": 0, "ambiguous_dates": 0, "duplicates": 0, "non_transaction_rows": 0}
     seen_refs: dict[str, str] = {}
     preview_rows: list[dict] = []
     sum_debit = 0
@@ -248,6 +281,15 @@ def _ingest_statement(db: Session, case: Case, sf: SourceFile, file_entity: Enti
             elif amount.minor is not None and "direction" not in mapping:
                 tx_warnings.append("direction_not_in_source")
         tx_warnings += [w for w in amount.warnings if w not in tx_warnings]
+
+        # A statement ends with lines like "*** End of Statement ***" and "Downloaded by: ...". They sit below
+        # the table, so they arrive as rows, and a row with no date, no amount and no reference is not a
+        # transaction: recording one puts a row of nothing into the evidence and into every count that follows.
+        # The file keeps the line either way; only the invented transaction is withheld, and the count of
+        # withheld rows is reported so the omission is visible.
+        if d.dt is None and amount.minor is None and not str(cell("reference") or "").strip():
+            counts["non_transaction_rows"] = counts.get("non_transaction_rows", 0) + 1
+            continue
         if amount.minor is None:
             counts["missing_amount"] += 1
 
