@@ -127,12 +127,15 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
   const filtered: NavGroup[] = ql ? NAV.map((g) => ({ ...g, children: g.children.filter((c) => `${c.label} ${c.hint} ${g.label}`.toLowerCase().includes(ql)) })).filter((g) => g.children.length) : NAV;
   const crumbs = [{ href: "/overview", label: "Command Centre" }, ...(route?.group ? [{ href: hrefFor(route.group.children[0], activeCase), label: route.group.label }] : []), ...(activeCase && route?.child.caseScoped ? [{ href: `/cases/${activeCase}`, label: activeTitle || "Case" }] : []), ...(title ? [{ href: path, label: title }] : [])];
 
+  /** The sidebar lists every route, so Next's default prefetch would fire dozens of RSC requests on each page view and a
+   * click's own request would queue behind them. Prefetch is therefore off by default and warmed on hover/focus instead. */
   const NavLink = ({ child, group }: { child: NavChild; group?: NavGroup }) => {
     const href = hrefFor(child, activeCase);
     const active = route?.child.key === child.key;
     const needsCase = child.caseScoped && !activeCase;
     return (
-      <Link href={href} aria-current={active ? "page" : undefined} title={collapsed ? `${child.label} — ${child.hint}` : child.hint}
+      <Link prefetch={false} href={href} onMouseEnter={() => router.prefetch(href)} onFocus={() => router.prefetch(href)}
+        aria-current={active ? "page" : undefined} title={collapsed ? `${child.label} — ${child.hint}` : child.hint}
         className={`group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition ${active ? "bg-white/12 font-semibold text-white ring-1 ring-white/10" : "text-rail-text/85 hover:bg-white/8 hover:text-white"} ${collapsed ? "justify-center" : "pl-8"}`}>
         {collapsed ? <span className="text-[10px] font-bold">{group?.num}</span> : <span className="truncate">{child.label}</span>}
         {!collapsed && needsCase && <span className="ml-auto rounded bg-white/10 px-1 text-[9px] uppercase text-rail-text/70" title="Select a case first">case</span>}
@@ -171,9 +174,9 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
         {ql && filtered.length === 0 && <div className="px-3 py-4 text-xs text-rail-text/70">No feature matches “{q}”.</div>}
       </div>
       <div className={`mt-auto border-t border-white/10 px-2 py-2 text-xs text-rail-text/80 ${collapsed ? "flex flex-col items-center gap-1" : "space-y-0.5"}`}>
-        {UTILITY.map((u) => <Link key={u.key} href={u.path} title={u.hint} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${route?.child.key === u.key ? "text-white" : ""}`}><I.help width={14} height={14} />{!collapsed && u.label}</Link>)}
+        {UTILITY.map((u) => <Link prefetch={false} key={u.key} href={u.path} title={u.hint} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${route?.child.key === u.key ? "text-white" : ""}`}><I.help width={14} height={14} />{!collapsed && u.label}</Link>)}
         <button className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${collapsed ? "justify-center" : ""}`} onClick={() => setWelcome(true)}><I.play width={14} height={14} />{!collapsed && "Replay walkthrough"}</button>
-        <Link href="/settings" className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${collapsed ? "justify-center" : ""}`}><I.settings width={14} height={14} />{!collapsed && "Settings"}</Link>
+        <Link prefetch={false} href="/settings" className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${collapsed ? "justify-center" : ""}`}><I.settings width={14} height={14} />{!collapsed && "Settings"}</Link>
         <button className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/8 hover:text-white ${collapsed ? "justify-center" : ""}`} onClick={async () => { await signOut(); router.push("/"); }}><I.logout width={14} height={14} />{!collapsed && "Sign out"}</button>
       </div>
     </nav>
