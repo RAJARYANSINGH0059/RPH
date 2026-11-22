@@ -40,3 +40,10 @@ Thumbs.db
 
 .vercel
 .env*
+
+# Local SQLite database, its journals and backups: working files, never repository content
+apps/api/*.db
+apps/api/*.db-shm
+apps/api/*.db-wal
+apps/api/*.db.bak
+apps/api/*.pre-twin.db.bak
