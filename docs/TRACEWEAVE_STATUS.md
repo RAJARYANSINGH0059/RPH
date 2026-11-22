@@ -48,6 +48,29 @@ stale relationships are counted and labelled, never dropped.
 | `cd apps/web; npx next build` | succeeds |
 | `cd apps/web; node --experimental-strip-types scripts/check-nav.mjs` | 7 groups, 74 feature routes, 3 utility, 0 problems |
 
+## Live verification (https://ps05x-api.onrender.com, https://rph-ps05x.vercel.app)
+
+Run against the deployed API with a fresh synthetic demo session and a generated Operation Desert Mirage case:
+
+Counts, one case, every surface queried separately:
+
+| Question | counts endpoint | overview | graph | paths endpoint | report |
+|---|---|---|---|---|---|
+| relationships | 86 | 86 | 86 edges (in_graph 86) | — | 86 |
+| paths | 28 | — | — | 28 | 28 |
+
+Token scope:
+
+| Token | Route | Result |
+|---|---|---|
+| download | `GET /api/cases/{id}` | 403 |
+| download | `POST /api/cases` | 403 |
+| download | `GET /api/cases/{id}/report.pdf` | 200 |
+| upload | `GET /api/cases/{id}/report.pdf` | 403 |
+| full | `GET /api/cases/{id}` | 200 |
+
+The API readiness pill was confirmed showing its state on the live web application.
+
 ## Not addressed in this pass
 
 The specification is much larger than these defects. Untouched here, and therefore unchanged in status: the full
