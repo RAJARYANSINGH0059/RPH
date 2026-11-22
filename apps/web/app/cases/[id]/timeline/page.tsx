@@ -34,7 +34,7 @@ export default function TimelinePage() {
         <div className="space-y-4">
           {groups.map(([day, evs]: [any, any]) => (
             <section key={day} className="card">
-              <h2 className="mb-2 text-sm font-semibold">{day} <span className="font-normal text-ink-muted">· {evs.length} event{evs.length > 1 ? "s" : ""}</span></h2>
+              <h2 className="section-title mb-2">{day} <span className="font-normal text-ink-muted">· {evs.length} event{evs.length > 1 ? "s" : ""}</span></h2>
               <ol className="relative ml-2 border-l border-line">
                 {evs.map((e: any) => (
                   <li key={e.id} className="mb-3 ml-4">

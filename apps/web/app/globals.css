@@ -117,7 +117,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .muted { color: var(--slate); }
   .jaali { background-image: radial-gradient(circle at 1px 1px, rgba(215, 224, 234, 0.12) 1px, transparent 1.5px); background-size: 14px 14px; }
   .skeleton { @apply animate-pulse rounded-md; background: linear-gradient(90deg, var(--panel), var(--canvas-deep), var(--panel)); }
-  .section-title { font-family: var(--font-display-stack); @apply text-[17px] font-semibold tracking-tight; }
+  .section-title { font-family: var(--font-display-stack); @apply text-[19px] font-semibold tracking-tight; }
+  .card-title { @apply text-[15px] font-semibold tracking-tight; }
   .kbd { @apply rounded px-1.5 py-0.5 text-[11px]; background: var(--panel); border: 1px solid var(--line-strong); }
   .lvl-directly_observed { background: var(--accent-soft); color: var(--accent-deep); }
   .lvl-corroborated { background: var(--ok-soft); color: var(--ok); }

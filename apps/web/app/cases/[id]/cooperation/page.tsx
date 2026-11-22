@@ -69,7 +69,7 @@ export default function CooperationPage() {
           </div>
           <div className="space-y-3 xl:sticky xl:top-20 xl:self-start">
             <div className="card">
-              <h3 className="font-semibold">Checklist</h3>
+              <h3 className="card-title">Checklist</h3>
               {v ? <ul className="mt-2 space-y-1 text-sm">
                 <li className={v.missing_fields.length ? "danger" : "ok"}>{v.missing_fields.length ? `${v.missing_fields.length} required field(s) missing` : "All required fields present"}</li>
                 <li className={Object.keys(v.out_of_bounds).length ? "danger" : "ok"}>{Object.keys(v.out_of_bounds).length ? "Narrative lengths out of bounds" : "Narrative lengths within 10–500"}</li>

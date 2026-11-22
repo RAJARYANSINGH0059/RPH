@@ -92,7 +92,7 @@ export default function UploadPage() {
         ))}
         <State loading={!c && !error}>
           <div className="card p-0">
-            <div className="px-4 py-3"><h2 className="font-semibold">Parse history</h2><p className="text-xs text-ink-muted">Every parse keeps the parser version so results are reproducible.</p></div>
+            <div className="px-4 py-3"><h2 className="section-title">Parse history</h2><p className="text-xs text-ink-muted">Every parse keeps the parser version so results are reproducible.</p></div>
             {runs.length === 0 ? <div className="px-4 pb-4 text-sm text-ink-muted">Nothing parsed yet.</div> : (
               <table className="data"><thead><tr><th>File</th><th>Parser</th><th>Result</th><th>Status</th><th>Warnings</th></tr></thead>
                 <tbody>{runs.map((r: any) => <tr key={r.id}><td className="font-medium">{fileName(r.source_file_id)}</td><td className="text-xs">{r.parser_name}@{r.parser_version}</td><td className="text-xs">{r.stats.transactions !== undefined ? `${r.stats.transactions} transactions · ${r.stats.ambiguous_dates} ambiguous dates · ${r.stats.duplicates} duplicates` : r.stats.observations !== undefined ? `${r.stats.observations} observations` : `${r.stats.blocks ?? 0} text blocks`}</td><td><span className={`badge ${r.status === "completed" ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"}`}>{r.status}</span></td><td className="text-xs warn">{(r.warnings || []).slice(0, 4).map((w: string) => w.replace(/_/g, " ")).join("; ")}</td></tr>)}</tbody></table>

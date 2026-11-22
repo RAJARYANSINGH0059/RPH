@@ -49,7 +49,7 @@ export default function CasesPage() {
         {cases && cases.length === 0 ? (
           <div className="card border-dashed py-10 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-light text-accent"><I.cases width={24} height={24} /></div>
-            <h2 className="text-lg font-semibold">No cases yet</h2>
+            <h2 className="section-title">No cases yet</h2>
             <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">The fastest way to learn the tool is a synthetic case: fictional statements, a complaint and technical observations, all generated with hidden ground truth.</p>
             <div className="mt-4 flex justify-center gap-2"><button className="btn" onClick={quickDemo} disabled={quick}>{quick ? "Generating…" : <><I.factory /> Generate a demo case</>}</button><Link href="/factory" className="btn-secondary">Choose scenario &amp; difficulty</Link></div>
           </div>

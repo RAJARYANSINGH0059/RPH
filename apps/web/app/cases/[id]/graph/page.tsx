@@ -257,7 +257,7 @@ export default function GraphPage() {
               </div>
               {candidates.length > 0 && (
                 <div className="card p-0">
-                  <div className="flex items-center justify-between px-4 py-3"><h2 className="font-semibold">Needs your decision ({candidates.length})</h2><span className="text-xs text-ink-muted">Click a row to open the evidence and counter-evidence</span></div>
+                  <div className="flex items-center justify-between px-4 py-3"><h2 className="section-title">Needs your decision ({candidates.length})</h2><span className="text-xs text-ink-muted">Click a row to open the evidence and counter-evidence</span></div>
                   <table className="data"><thead><tr><th>Relationship</th><th>Between</th><th>Level</th><th>Why it is only a candidate</th></tr></thead>
                     <tbody>{candidates.slice(0, 50).map((e: any) => <tr key={e.id} className="cursor-pointer" onClick={() => setEdge(e.id)} tabIndex={0} onKeyDown={(k) => k.key === "Enter" && setEdge(e.id)}><td className="font-medium">{e.type.replace(/_/g, " ").toLowerCase()}</td><td className="text-xs">{nodeLabel(e.source)} ↔ {nodeLabel(e.target)}</td><td><LevelBadge level={e.evidence_level} /></td><td className="text-xs text-ink-muted">{(e.limitations[0] || EDGE_HELP[e.type] || "").replace(/_/g, " ")}</td></tr>)}</tbody></table>
                 </div>
@@ -272,7 +272,7 @@ export default function GraphPage() {
               <EdgePanel caseId={id} edgeId={edge} onClose={() => setEdge(null)} onReviewed={load} />
               {node && !edge && (
                 <aside className="card text-sm" aria-label="Entity 360">
-                  <div className="flex items-start justify-between"><h2 className="font-semibold">Entity 360</h2><button className="btn-icon" onClick={() => { setNode(null); cyRef.current?.elements().removeClass("dim"); }} aria-label="Close"><I.close /></button></div>
+                  <div className="flex items-start justify-between"><h2 className="section-title">Entity 360</h2><button className="btn-icon" onClick={() => { setNode(null); cyRef.current?.elements().removeClass("dim"); }} aria-label="Close"><I.close /></button></div>
                   <div className="mt-1 flex items-center gap-2"><span className="badge" style={{ background: (NODE_COLORS[node.entity.type] || "#7b8794") + "22", color: NODE_COLORS[node.entity.type] }}>{node.entity.type.replace("_", " ")}</span><span className="mono text-xs">{node.entity.attributes.key}</span></div>
                   <div className="mt-1 text-xs text-ink-muted">first seen {node.first_seen?.slice(0, 10) || "?"} · last seen {node.last_seen?.slice(0, 10) || "?"} · {node.edges.length} relationships</div>
                   {node.triage && <div className="mt-2 rounded-lg bg-canvas p-2.5 text-xs"><div className="font-semibold">Triage (rules; requires review): {node.triage.label.replace(/_/g, " ")}</div><div>{node.triage.reasons.map((r: string) => r.replace(/_/g, " ")).join(", ") || "no rule fired"}</div><div className="mt-1 text-ink-muted">fan-in {node.features.fan_in} · fan-out {node.features.fan_out} · median holding {node.features.median_holding_hours < 0 ? "n/a" : node.features.median_holding_hours.toFixed(1) + " h"} · out/in {node.features.out_in_ratio.toFixed(2)}</div></div>}

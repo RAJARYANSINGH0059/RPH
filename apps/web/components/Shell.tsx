@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { I, type IconName } from "@/components/icons";
-import { api, getCaseContext, getUser, isDemo, setCaseContext, signOut, type User } from "@/lib/api";
+import { api, getCaseContext, getUser, isDemo, setCaseContext, signOut, warmApi, type User } from "@/lib/api";
 import { EVIDENCE_LEVEL_HELP, GUIDE, WALKTHROUGH } from "@/lib/guide";
 import { NAV, UTILITY, hrefFor, matchRoute, type NavChild, type NavGroup } from "@/lib/nav";
 export { State, LevelBadge, Stat, Copyable } from "@/components/ui";
@@ -119,6 +119,10 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
   }, [router]);
   useEffect(() => { setDrawer(false); }, [path]);
   useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === "visible") warmApi(); }, 10 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
     if (caseId && caseTitle) setCaseContext({ id: caseId, title: caseTitle });
     const sync = () => setCtx(getCaseContext());
     sync();
@@ -157,7 +161,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
     const active = route?.child.key === child.key;
     const needsCase = child.caseScoped && !activeCase;
     const icon = iconForChild(child, group);
-    const warm = { onMouseEnter: () => router.prefetch(href), onFocus: () => router.prefetch(href) };
+    const warm = { onMouseEnter: () => router.prefetch(href), onFocus: () => router.prefetch(href), onPointerDown: () => router.prefetch(href) };
     if (collapsed) {
       return (
         <Link prefetch={false} href={href} {...warm} aria-current={active ? "page" : undefined} title={`${child.label}: ${child.hint}`}
@@ -167,7 +171,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
       );
     }
     return (
-      <Link prefetch={false} href={href} {...warm} aria-current={active ? "page" : undefined}
+      <Link href={href} {...warm} aria-current={active ? "page" : undefined}
         className={`navrow ${active ? "bg-white/12 text-white ring-1 ring-white/10" : "text-rail-text/90 hover:bg-white/8 hover:text-white"}`}>
         <span className={`navrow-icon ${active ? "text-saffron" : "text-rail-text/70"}`}><Icon name={icon} width={14} height={14} /></span>
         <span className="min-w-0 flex-1">
@@ -281,7 +285,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
               </div>
             </section>
           )}
-          <div className="rise rise-1">{children}</div>
+          {children}
         </main>
       </div>
       {help && pageKey && GUIDE[pageKey] && <><div className="fixed inset-0 z-30 bg-ink/25" onClick={() => setHelp(false)} aria-hidden /><HelpDrawer pageKey={pageKey} onClose={() => setHelp(false)} /></>}

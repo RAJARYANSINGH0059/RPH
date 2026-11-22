@@ -39,7 +39,7 @@ export default function CaseOverview() {
             </div>
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
               <div className="card overflow-x-auto p-0">
-                <div className="flex items-center justify-between px-4 py-3"><h2 className="font-semibold">Evidence files</h2><Link href={`/cases/${id}/upload`} className="btn-secondary"><I.upload /> Upload more</Link></div>
+                <div className="flex items-center justify-between px-4 py-3"><h2 className="section-title">Evidence files</h2><Link href={`/cases/${id}/upload`} className="btn-secondary"><I.upload /> Upload more</Link></div>
                 <table className="data"><thead><tr><th>File</th><th>Kind</th><th>Size</th><th>Status</th><th>Uploaded</th></tr></thead>
                   <tbody>{files.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-ink-muted">No files yet.</td></tr>}
                     {files.map((f: any) => <tr key={f.id}><td><div className="font-medium">{f.original_name}</div><div className="mono text-[11px] text-ink-muted">sha256 {f.sha256.slice(0, 20)}…</div></td><td>{f.detected_kind}</td><td>{(f.size_bytes / 1024).toFixed(1)} KB</td><td><span className={`badge ${f.status === "parsed" ? "bg-ok-soft text-ok" : f.status === "failed" ? "bg-danger-soft text-danger" : "bg-saffron-soft text-warn"}`}>{f.status.replace("_", " ")}</span></td><td className="text-xs">{fmtTime(f.uploaded_at)}</td></tr>)}

@@ -18,9 +18,9 @@ function Body({ id }: { id: string }) {
       {rep.data && (
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-4">
-            <div className="card"><div className="label mb-0">Paths</div><div className="num text-2xl font-bold">{rep.data.paths?.length ?? 0}</div><Link href={`/cases/${id}/money-trail`} className="text-xs text-accent-deep underline">money trail</Link></div>
-            <div className="card"><div className="label mb-0">Relationships</div><div className="num text-2xl font-bold">{rep.data.relationships?.length ?? 0}</div><Link href={`/cases/${id}/findings`} className="text-xs text-accent-deep underline">evidence-linked findings</Link></div>
-            <div className="card"><div className="label mb-0">Completeness</div><div className="num text-2xl font-bold">{comp.data ? `${comp.data.score.percent}%` : "…"}</div><Link href={`/cases/${id}/completeness`} className="text-xs text-accent-deep underline">checklist</Link></div>
+            <div className="metric"><div className="label mb-0">Paths</div><div className="metric-value mt-2">{rep.data.paths?.length ?? 0}</div><Link href={`/cases/${id}/money-trail`} className="text-xs text-accent-deep underline">money trail</Link></div>
+            <div className="metric"><div className="label mb-0">Relationships</div><div className="metric-value mt-2">{rep.data.relationships?.length ?? 0}</div><Link href={`/cases/${id}/findings`} className="text-xs text-accent-deep underline">evidence-linked findings</Link></div>
+            <div className="metric"><div className="label mb-0">Completeness</div><div className="metric-value mt-2">{comp.data ? `${comp.data.score.percent}%` : "…"}</div><Link href={`/cases/${id}/completeness`} className="text-xs text-accent-deep underline">checklist</Link></div>
             <div className="card"><div className="label mb-0">Challenge states</div><div className="text-xs mt-1">{adv.data ? Object.entries(adv.data.by_state).map(([k, v]: [any, any]) => <span key={k} className="mr-2"><Chip v={k} /> {String(v)}</span>) : "…"}</div><Link href={`/cases/${id}/counterproof`} className="text-xs text-accent-deep underline">CounterProof</Link></div>
           </div>
           <Section title="Case" hint={rep.data.disclaimer}><KV rows={[["Title", rep.data.case.title], ["Data status", rep.data.case.data_status], ["Live connections", rep.data.case.live_connections], ["Generated", rep.data.generated_at], ["Report version", rep.data.report_version]]} /></Section>

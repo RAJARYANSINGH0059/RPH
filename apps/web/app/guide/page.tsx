@@ -21,7 +21,7 @@ export default function GuidePage() {
             const g = GUIDE[k];
             return (
               <section key={k} id={k} className="card scroll-mt-6">
-                <h2 className="text-lg font-bold">{g.title}</h2>
+                <h2 className="section-title">{g.title}</h2>
                 <p className="mt-1 text-sm">{g.purpose}</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <div className="rounded-lg bg-canvas p-3"><div className="label">What you give it</div><ul className="list-disc space-y-1 pl-4 text-sm">{g.inputs.map((x: any) => <li key={x}>{x}</li>)}</ul></div>
@@ -32,12 +32,12 @@ export default function GuidePage() {
             );
           })}
           <section id="levels" className="card scroll-mt-6">
-            <h2 className="text-lg font-bold">Evidence levels</h2>
+            <h2 className="section-title">Evidence levels</h2>
             <p className="mt-1 text-sm text-ink-muted">Every relationship in the graph and report carries one of these. Scores shown next to them are heuristic ranking scores, not probabilities.</p>
             <ul className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(EVIDENCE_LEVEL_HELP).map(([k, v]: [any, any]) => <li key={k} className="flex items-start gap-2 rounded-lg border border-line p-2 text-sm"><LevelBadge level={k} /><span>{v}</span></li>)}</ul>
           </section>
           <section id="rules" className="card scroll-mt-6">
-            <h2 className="text-lg font-bold">What the tool will never do</h2>
+            <h2 className="section-title">What the tool will never do</h2>
             <ul className="mt-2 grid gap-2 sm:grid-cols-2 text-sm">
               {["Call two domains commonly owned because they share an IP, CDN, ASN or registrar.", "Merge two people or accounts because their names look similar.", "Resolve an ambiguous date (03/04/26) silently.", "Drop a duplicate row; both are kept and flagged.", "Invent a missing value.", "Present current DNS as historical DNS.", "Label anyone a criminal; it says “possible pattern, requires review”.", "Freeze, lien or file anything; it prepares evidence for authorised humans."].map((x: any) => <li key={x} className="flex gap-2"><I.shield className="mt-0.5 shrink-0 text-accent" width={16} height={16} />{x}</li>)}
             </ul>

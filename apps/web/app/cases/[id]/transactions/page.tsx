@@ -28,7 +28,7 @@ export default function TransactionsPage() {
           {stats && <div className="grid grid-cols-2 gap-3 md:grid-cols-4"><Stat label="Rows parsed" value={stats.total} hint="raw text kept for each" /><Stat label="With amount" value={stats.amount} hint="integer paise, never floats" /><Stat label="Ambiguous dates" value={stats.amb} hint="dd/mm vs mm/dd kept flagged" tone={stats.amb ? "warn" : "ok"} /><Stat label="Duplicate candidates" value={stats.dup} hint="both copies kept" tone={stats.dup ? "warn" : "ok"} /></div>}
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="card">
-              <h2 className="flex items-center gap-2 font-semibold"><I.link className="text-accent" /> Reconstructed fund paths</h2>
+              <h2 className="section-title flex items-center gap-2"><I.link className="text-accent" /> Reconstructed fund paths</h2>
               <p className="mb-2 text-xs text-ink-muted">Derived by chaining transfers in time order (each hop after the previous one, within 96 h). Sub-paths are pruned. A VPA and its account number are treated as one node when a reference match proves it.</p>
               {paths?.paths?.length ? <ol className="space-y-2 text-sm">{paths.paths.slice(0, 8).map((p: any, i: number) => (
                 <li key={i} className="rounded-lg border border-line bg-card p-2.5">
@@ -38,15 +38,15 @@ export default function TransactionsPage() {
               {paths?.reconciliation?.length > 0 && <div className="mt-3 text-xs"><div className="label">Balance reconciliation per statement</div>{paths.reconciliation.map((r: any) => <div key={r.parse_run_id} className={r.mismatch_minor ? "warn" : "text-ink-muted"}>{r.mismatch_minor ? "⚠" : "✓"} expected {paise(r.expected_last_minor)}, stated {paise(r.last_balance_minor)}{r.mismatch_minor ? `, mismatch ${paise(r.mismatch_minor)}` : ""}</div>)}</div>}
             </div>
             <div className="card">
-              <h2 className="font-semibold">Inflow vs outflow by account (₹)</h2>
+              <h2 className="section-title">Inflow vs outflow by account (₹)</h2>
               <div style={{ height: 200 }}><ResponsiveContainer><BarChart data={chart} margin={{ left: 8, right: 8 }}><CartesianGrid strokeDasharray="3 3" stroke="#eef1f4" /><XAxis dataKey="account" fontSize={10} /><YAxis fontSize={10} tickFormatter={(v) => `${Math.round(v / 1000)}k`} /><Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString("en-IN")}`} /><Legend wrapperStyle={{ fontSize: 11 }} /><Bar dataKey="inflow" fill="#1f5fa8" radius={[3, 3, 0, 0]} /><Bar dataKey="outflow" fill="#b7791f" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div>
-              <h3 className="mt-3 flex items-center gap-2 text-sm font-semibold"><I.alert className="text-warn" width={16} height={16} /> Triage signals <span className="font-normal text-ink-muted">(rules; a reason to look, not a conclusion)</span></h3>
+              <h3 className="card-title mt-3 flex items-center gap-2"><I.alert className="text-warn" width={16} height={16} /> Triage signals <span className="font-normal text-ink-muted">(rules; a reason to look, not a conclusion)</span></h3>
               {signals.length === 0 ? <div className="text-xs text-ink-muted">No rule fired.</div> : <ul className="mt-1 space-y-1.5 text-xs">{signals.slice(0, 8).map(([a, f]: [any, any]) => <li key={a} className="rounded-lg bg-canvas p-2"><div className="flex flex-wrap items-center gap-2"><span className="mono">{a}</span><span className={`badge ${f.triage.label.startsWith("possible") ? "bg-saffron-soft text-warn" : "bg-panel"}`}>{f.triage.label.replace(/_/g, " ")}</span>{f.ml_triage && <span className="badge bg-panel" title={f.ml_triage.semantics}>ML cue {f.ml_triage.triage_score}</span>}</div><div className="mt-0.5 text-ink-muted">{f.triage.reasons.map((r: string) => r.replace(/_/g, " ")).join(" · ")}</div></li>)}</ul>}
             </div>
           </div>
           <div className="card p-0">
             <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-              <h2 className="font-semibold">Transactions</h2>
+              <h2 className="section-title">Transactions</h2>
               <div className="relative ml-auto"><I.search className="absolute left-2 top-2 text-ink-muted" width={15} height={15} /><input className="input w-64 py-1.5 pl-7" placeholder="Filter by account, ref, narration…" aria-label="Filter transactions" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
               {(["all", "flagged", "dupes", "ambiguous"] as const).map((k: any) => <button key={k} className={`chip ${only === k ? "chip-on" : ""}`} onClick={() => setOnly(k)}>{k === "all" ? "All" : k === "flagged" ? "With flags" : k === "dupes" ? "Duplicates" : "Ambiguous dates"}</button>)}
               <span className="text-xs text-ink-muted">{shown.length} rows</span>

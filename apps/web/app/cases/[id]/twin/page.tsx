@@ -46,7 +46,7 @@ function TwinBody({ id, layers, setLayers, classes, setClasses, cursor, setCurso
       {data && (
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr]">
-            {Object.entries(data.supported_facts).map(([k, v]: [any, any]) => <div key={k} className="card"><div className="label mb-0">{k.replace(/_/g, " ")}</div><div className="num mt-1 text-2xl font-bold">{String(v)}</div></div>)}
+            {Object.entries(data.supported_facts).map(([k, v]: [any, any]) => <div key={k} className="card"><div className="label mb-0">{k.replace(/_/g, " ")}</div><div className="metric-value mt-2">{String(v)}</div></div>)}
           </div>
           <div className="card flex flex-wrap items-center gap-3 text-xs">
             <span className="label mb-0">Layers</span>

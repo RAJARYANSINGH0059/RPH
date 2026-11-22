@@ -29,7 +29,7 @@ function Body({ id }: { id: string }) {
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-4">
               <div className="card"><div className="label mb-0">Attribution status</div><div className="mt-1"><Chip v={data.attribution_status === "EXACT_UNDER_CONSTRAINTS" ? "corroborated" : data.attribution_status === "BOUNDED_UNDER_CONSTRAINTS" ? "derived" : data.attribution_status === "INFEASIBLE" ? "contradicted" : "unresolved"} /> <span className="mono text-sm">{data.attribution_status}</span></div></div>
-              <div className="card"><div className="label mb-0">Origin</div><div className="num mt-1 text-xl font-bold"><Money v={data.origin?.amount_minor} /></div><div className="text-xs muted">from {data.origin?.victim_account}</div></div>
+              <div className="metric"><div className="label mb-0">Origin</div><div className="metric-value mt-2"><Money v={data.origin?.amount_minor} /></div><div className="text-xs muted">from {data.origin?.victim_account}</div></div>
               <div className="card"><div className="label mb-0">Path</div><div className="mt-1 text-sm">{data.path ? data.path.accounts.map((a: string) => a.slice(-6)).join(" → ") : "—"}</div><div className="text-xs muted">{data.path?.status}</div></div>
               <div className="card"><div className="label mb-0">Solver</div><div className="mt-1 text-xs">{data.method} · {data.solver}</div><div className="text-xs muted">{data.variables} variables · {data.constraints?.inequalities} ≤ · {data.constraints?.equalities} =</div></div>
             </div>

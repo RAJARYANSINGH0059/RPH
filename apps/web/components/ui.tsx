@@ -7,8 +7,21 @@ import { I } from "@/components/icons";
 import { apiGet, fmtTime, invalidateCache, paise, peekCache } from "@/lib/api";
 import { EVIDENCE_LEVEL_HELP } from "@/lib/guide";
 
+/** Shown while a page waits. After a few seconds it says why, because the free-plan API sleeps when idle and a silent
+ * skeleton makes a waking service look like a broken one. */
+function Waiting() {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => { const t = setInterval(() => setSecs((s) => s + 1), 1000); return () => clearInterval(t); }, []);
+  return (
+    <div className="space-y-2" role="status" aria-label="Loading">
+      <div className="skeleton h-10" /><div className="skeleton h-24" /><div className="skeleton h-24" />
+      {secs >= 4 && <p className="text-xs muted">Waiting for the analysis API ({secs}s). Free-plan services sleep when idle, so the first request after a pause can take up to a minute.</p>}
+    </div>
+  );
+}
+
 export function State({ loading, error, empty, children, onRetry }: { loading?: boolean; error?: string | null; empty?: React.ReactNode; children?: React.ReactNode; onRetry?: () => void }) {
-  if (loading) return <div className="space-y-2" role="status" aria-label="Loading"><div className="skeleton h-10" /><div className="skeleton h-24" /><div className="skeleton h-24" /></div>;
+  if (loading) return <Waiting />;
   if (error) {
     const denied = /not found|403|forbidden|insufficient/i.test(error);
     return <div className="card flex items-start gap-2 border-danger/30 bg-danger-soft text-sm text-danger" role="alert"><I.alert className="shrink-0" /><div className="flex-1"><div className="font-semibold">{denied ? "Not available to this account" : "Could not load"}</div><div>{error}</div></div>{onRetry && <button className="btn-secondary" onClick={onRetry}>Retry</button>}</div>;
