@@ -62,6 +62,18 @@ If you later connect the Vercel project to the GitHub repo for automatic deploys
 
 Optional keyed features: `PROOF_SIGNING_KEY` (+ `PROOF_SIGNING_KEY_VERSION`) adds an HMAC to proof manifests; `CROSSCASE_TOKEN_KEY` enables keyed-token privacy matching. Both are off when unset and the UI says so. Never commit them.
 
+## Warm the edge cache after every deployment
+
+A fresh deployment starts with an empty CDN cache, so the first person to open each screen waits for the origin in
+Singapore. Measured on this project: a first visit took up to 11.5 s, the same visit after warming took 132 ms.
+
+```powershell
+cd apps/web; node --experimental-strip-types scripts/warm-routes.mjs https://rph-ps05x.vercel.app
+```
+
+It derives the list from the navigation registry, so a new global route is warmed automatically. Case-scoped routes
+are skipped: they are rendered on demand and need a case id and a session.
+
 ## Post-deploy acceptance checklist
 
 - [ ] `/api/health/live` and `/api/health/ready` → 200
