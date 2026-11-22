@@ -52,3 +52,10 @@
 - **Reversal detection** is textual and structural (reversal/refund keyword plus the same amount and either the quoted reference or the same counterparty). A reversal narrated without a keyword is treated as an ordinary credit; a false pairing can only happen within one account's own statement and is listed for review.
 - **Graph-only baseline** numbers describe a deliberately naive traversal on synthetic cases; they are a comparison point for the benchmark, not a claim about any real tool or team.
 - **Investigation package** digests cover the generated entries only; the raw uploads are hashed in report.json and downloaded separately. The package is not a signed or legal certificate.
+
+## Performance characteristics (2026-11-22)
+
+- A fresh deployment starts with an empty CDN cache; the first visit to a screen then waits for the origin (measured up to 11.5 s). `apps/web/scripts/warm-routes.mjs` is run after each deploy to remove that, after which first visits land between 0.4 s and 0.8 s and revisits in about 30 ms.
+- Reads are cached in memory per browser tab (stale-while-revalidate, 30 s freshness) and refreshed in the background; any write clears the cache. Nothing is written to browser storage.
+- The API runs on a free plan that sleeps after about fifteen minutes idle. A visible tab pings it every ten minutes to keep it awake, and a load taking more than four seconds says it is waiting for the API. A genuinely cold start can still take up to a minute.
+- The relationship challenge is recomputed on each visit and takes seconds per case on free-plan CPU. The Alerts page therefore renders each case's result as it arrives rather than blocking on the slowest one.
