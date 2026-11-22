@@ -186,6 +186,10 @@ def _ingest_statement(db: Session, case: Case, sf: SourceFile, file_entity: Enti
     has_amount = "amount" in mapping or "debit" in mapping or "credit" in mapping
     if "datetime" not in mapping or not has_amount:
         warnings.append("mapping_incomplete_transactions_not_normalised")
+    # A warning the caller already recorded can arrive again on the parsed result - the PDF path passes the extraction's
+    # own warnings through and the tabular result carries them too. Parser warnings are counted, so a repeat would
+    # inflate the count of things to check without naming anything new. Order is kept so the first mention stays first.
+    warnings = list(dict.fromkeys(warnings))
     run = ParseRun(case_id=case.id, source_file_id=sf.id, parser_name=parser_name, parser_version=common.PARSER_VERSION,
                    column_mapping=mapping, warnings=warnings, stats={"rows": len(parsed.rows), "headers": parsed.headers})
     db.add(run)

@@ -165,3 +165,7 @@ def test_a_pdf_statement_is_recorded_as_parsed_by_the_statement_parser(client, a
     assert pdf_statement.PARSER_NAME in names, names
     run = next(r for r in runs.json() if r["parser_name"] == pdf_statement.PARSER_NAME)
     assert any("pdf_statement_extraction_confidence" in w for w in run["warnings"]), run["warnings"]
+    # Parser warnings are counted as things for a person to check. The PDF path passes the extraction's own warnings
+    # to the ingestion step and the tabular result carries them too, so a repeat would inflate that count without
+    # naming anything new.
+    assert len(run["warnings"]) == len(set(run["warnings"])), f"a warning is recorded twice: {run['warnings']}"
