@@ -15,10 +15,10 @@ const SIDEBAR_KEY = "ps05x_sidebar_v4";
 export function Banner({ synthetic, uploaded, demo }: { synthetic?: boolean; uploaded?: boolean; demo?: boolean }) {
   return (
     <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold uppercase tracking-wide">
-      {(synthetic || demo) && <span className="rounded-full bg-terracotta px-2.5 py-0.5 text-white">{demo ? "Synthetic demo — not real case data" : "Synthetic"}</span>}
-      {uploaded && <span className="rounded-full bg-ink px-2.5 py-0.5 text-white">Uploaded evidence</span>}
-      <span className="rounded-full border border-terracotta/60 px-2.5 py-0.5 text-terracotta">No live police/bank connection</span>
-      <span className="hidden rounded-full border border-line-strong px-2.5 py-0.5 text-ink-muted xl:inline">Human verification required</span>
+      {(synthetic || demo) && <span className="whitespace-nowrap rounded-full bg-terracotta px-2.5 py-0.5 text-white">{demo ? "Synthetic demo — not real case data" : "Synthetic"}</span>}
+      {uploaded && <span className="whitespace-nowrap rounded-full bg-ink px-2.5 py-0.5 text-white">Uploaded evidence</span>}
+      <span className="whitespace-nowrap rounded-full border border-terracotta/60 px-2.5 py-0.5 text-terracotta">No live police/bank connection</span>
+      <span className="hidden whitespace-nowrap rounded-full border border-line-strong px-2.5 py-0.5 text-ink-muted xl:inline">Human verification required</span>
     </div>
   );
 }
