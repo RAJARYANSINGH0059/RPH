@@ -9,7 +9,15 @@ import { api } from "@/lib/api";
 export default function Page() {
   const [rows, setRows] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { api("/cases").then(async (cs) => { const out: any[] = []; for (const c of cs.slice(0, 12)) { try { const h = await api(`/cases/${c.id}`); out.push({ ...c, ...h }); } catch { /* skip */ } } setRows(out); }).catch((e) => setError(e.message)); }, []);
+  // Twelve case headers fetched together rather than one after another.
+  useEffect(() => {
+    api("/cases").then(async (cs) => {
+      const out = await Promise.all(cs.slice(0, 12).map(async (c: any) => {
+        try { return { ...c, ...(await api(`/cases/${c.id}`)) }; } catch { return null; }
+      }));
+      setRows(out.filter(Boolean) as any[]);
+    }).catch((e) => setError(e.message));
+  }, []);
   return (
     <Shell title="Investigation Work Queue" subtitle="What needs a human decision next, per case: candidate links to review, parser warnings to check, missing statements to request.">
       <State loading={!rows && !error} error={error}>

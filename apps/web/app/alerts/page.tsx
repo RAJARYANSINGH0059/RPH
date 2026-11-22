@@ -9,7 +9,22 @@ import { api, getUser, isDemo } from "@/lib/api";
 export default function Page() {
   const [items, setItems] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { (async () => { try { const cs = await api("/cases"); const out: any[] = []; for (const c of cs.slice(0, 8)) { try { const adv = await api(`/cases/${c.id}/adversary?limit=200`); const cov = await api(`/cases/${c.id}/coverage`); for (const [k, n] of Object.entries(adv.by_state)) if (["contested", "contradicted", "stale"].includes(k)) out.push({ case: c, kind: `${n} relationship(s) ${k}`, href: `/cases/${c.id}/counterproof`, level: k }); for (const w of cov.negative_claim_warnings) out.push({ case: c, kind: w.warning, href: `/cases/${c.id}/coverage-ivoi`, level: "unresolved", detail: w.needed }); } catch { /* skip */ } } setItems(out); } catch (e: any) { setError(e.message); } })(); }, []);
+  // Every case is fetched at once, and the two analyses per case together: serially this took about four seconds.
+  useEffect(() => { (async () => {
+    try {
+      const cs = await api("/cases");
+      const per = await Promise.all(cs.slice(0, 8).map(async (c: any) => {
+        const out: any[] = [];
+        try {
+          const [adv, cov] = await Promise.all([api(`/cases/${c.id}/adversary?limit=200`), api(`/cases/${c.id}/coverage`)]);
+          for (const [k, n] of Object.entries(adv.by_state)) if (["contested", "contradicted", "stale"].includes(k)) out.push({ case: c, kind: `${n} relationship(s) ${k}`, href: `/cases/${c.id}/counterproof`, level: k });
+          for (const w of cov.negative_claim_warnings) out.push({ case: c, kind: w.warning, href: `/cases/${c.id}/coverage-ivoi`, level: "unresolved", detail: w.needed });
+        } catch { /* a case that cannot be analysed is skipped, not reported as an alert */ }
+        return out;
+      }));
+      setItems(per.flat());
+    } catch (e: any) { setError(e.message); }
+  })(); }, []);
   const demo = isDemo(getUser());
   return (
     <Shell title="Alerts and Notifications" subtitle="Contradictions, stale observations and unresolved path ends across your recent cases. Demo sessions expire automatically after four hours.">
