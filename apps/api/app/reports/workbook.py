@@ -287,6 +287,17 @@ def _account_triage(wb: Workbook, report: dict, profiles: dict) -> None:
     sh.blank()
     sh.note("A score here is a ranking signal for review. It is not a probability of criminal involvement, and no "
             "account or person is labelled.", bold=True)
+    # Two independent assessments sit on this sheet, and a reader who does not know that reads a disagreement as
+    # a defect. The assessment column comes from the typology engine, which counts the patterns an account's
+    # records show; the heuristic score comes from the older rules engine, which weighs different features.
+    # Where they differ, that is information for the reviewer rather than an error to reconcile.
+    sh.note("Two independent assessments appear on this sheet. 'assessment' counts the patterns the typology "
+            "engine observed; 'heuristic_score_not_probability' comes from the separate rules engine, which "
+            "weighs different features. They can disagree, and a disagreement is information for the reviewer "
+            "rather than an error: it means one engine saw something the other did not.")
+    sh.note("Every pattern is listed whether or not it fired, because silence about a check is not an answer. A "
+            "state of not_enough_history or not_enough_evidence means the supplied records do not cover what the "
+            "threshold needs; it is not a finding that the pattern is absent.")
 
 
 def _money_paths(wb: Workbook, report: dict) -> None:

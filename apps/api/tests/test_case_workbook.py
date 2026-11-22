@@ -197,6 +197,10 @@ def test_account_triage_carries_thresholds_rows_and_ordinary_explanations(book):
     assert "rapid_in_out" in body or "pass_through" in body
     note = " ".join(str(c.value) for row in ws.iter_rows() for c in row if c.value).lower()
     assert "not a probability of criminal involvement" in note
+    # Two engines assess an account and can disagree. A reader who is not told that reads it as a defect.
+    assert "two independent assessments" in note
+    assert "disagreement is information" in note
+    assert "silence about a check is not an answer" in note
 
 
 def test_money_paths_say_what_would_resolve_an_unresolved_end(book):
