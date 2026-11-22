@@ -5,19 +5,37 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { MotionScene } from "@/components/motion";
 import { I } from "@/components/icons";
-import { getUser, signInDemo } from "@/lib/api";
+import { getUser, signInDemo, warmApi } from "@/lib/api";
 
 function SignIn() {
   const router = useRouter();
   const params = useSearchParams();
   const [busy, setBusy] = useState(false);
+  const [waited, setWaited] = useState(0);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { if (getUser() && !params.get("expired")) router.replace("/overview"); }, [router, params]);
+  useEffect(() => { warmApi(); }, []);  // wake the sleeping free-plan API while the visitor reads this page
+  useEffect(() => {
+    if (!busy) { setWaited(0); return; }
+    const started = Date.now();
+    const t = setInterval(() => setWaited(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
   async function enter() {
     setBusy(true); setError(null);
-    try { await signInDemo(); router.push("/overview"); }
-    catch (e: any) { setError(e.message || "Could not start the demo session."); setBusy(false); }
+    try {
+      await signInDemo();
+      // Full document load rather than a client-side push: the session cookie is applied to a fresh document and a stalled
+      // RSC payload can never leave the button spinning with no way out.
+      window.location.assign("/overview");
+    } catch (e: any) {
+      setError(e?.message || "Could not start the demo session.");
+      setBusy(false);
+    }
   }
+  const waitNote = waited >= 8
+    ? "The API is waking up (free-plan services sleep when idle). This can take up to a minute on the first visit."
+    : null;
   return (
     <main className="min-h-screen md:grid md:grid-cols-[1.05fr_1fr]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-rail p-10 text-rail-text md:flex jaali">
@@ -38,8 +56,10 @@ function SignIn() {
           <h2 className="mt-1 text-3xl font-bold tracking-tight">Enter the demo workspace</h2>
           <p className="mt-2 text-sm muted">One click creates an isolated, time-limited workspace with synthetic data only. No email, password or OTP. Nothing you do here touches a real case.</p>
           <button onClick={enter} disabled={busy} className="btn mt-6 w-full justify-center py-4 text-lg font-bold" aria-busy={busy}>
-            {busy ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden /> Entering secure demo workspace…</> : <>SIGN IN <I.arrow /></>}
+            {busy ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden /> Entering secure demo workspace…{waited >= 3 ? ` ${waited}s` : ""}</> : <>SIGN IN <I.arrow /></>}
           </button>
+          {busy && waitNote && <p className="mt-3 text-sm muted" role="status">{waitNote}</p>}
+          {busy && waited >= 25 && <button className="btn-secondary mt-2 w-full justify-center" onClick={() => { setBusy(false); setError("Cancelled. The API may still be waking up — try again in a few seconds."); }}>Cancel and try again</button>}
           {params.get("expired") && !error && <p className="mt-3 text-sm warn" role="status">Your previous session ended. Sign in again to continue.</p>}
           {error && <div role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger"><div className="font-semibold">Could not enter the demo</div><div>{error}</div><button className="btn-secondary mt-2" onClick={enter}>Try again</button></div>}
           <div className="mt-6 rounded-xl border border-terracotta/40 bg-terracotta-soft p-3 text-xs"><span className="font-semibold uppercase tracking-wide text-terracotta">Synthetic demo — not real case data.</span> Every record is fictional (reserved .test domains, documentation IP ranges, invented banks). No live police, bank, telecom or registrar connection exists.</div>

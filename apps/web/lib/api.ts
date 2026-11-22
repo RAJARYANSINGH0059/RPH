@@ -16,7 +16,7 @@ export function getUser(): User | null {
   try { const u = window.localStorage.getItem(USER_KEY); return u ? (JSON.parse(u) as User) : null; } catch { return null; }
 }
 export function setProfile(user: User) { try { window.localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch { /* ignore */ } }
-export function clearSession() { try { window.localStorage.removeItem(USER_KEY); } catch { /* ignore */ } }
+export function clearSession() { try { window.localStorage.removeItem(USER_KEY); } catch { /* ignore */ } invalidateCache(); }
 export const isDemo = (u: User | null) => u?.role === "demo_analyst";
 export const isReviewer = (u: User | null) => u?.role === "supervisor" || u?.role === "admin";
 
@@ -47,9 +47,62 @@ function onUnauthorised() {
   if (p !== "/" && !p.startsWith("/staff")) window.location.href = "/?expired=1";
 }
 
-/** JSON call through the BFF proxy. `raw: true` downloads a Blob directly from the API with a scoped short token. */
-export async function api<T = any>(path: string, init: RequestInit & { raw?: boolean } = {}): Promise<T> {
+/* ---------------------------------------------------------------------------------------------------------------
+ * Read cache. Every page in this app renders the shell (which needs /cases and /health/ready) and then its own data,
+ * and each call is a round trip through the same-origin proxy to a free-plan API. Without a cache, revisiting a page
+ * means waiting for all of that again, which is why navigation felt slow. GET results are therefore kept in memory for
+ * the tab's lifetime: a revisit renders immediately from cache and revalidates in the background, identical in-flight
+ * GETs are shared instead of duplicated, and any successful write clears the cache so nothing stale survives a change.
+ * Nothing is written to disk or to browser storage, so no case data outlives the tab. */
+const FRESH_MS = 30_000;       // within this window a cached GET is used as-is, with no background revalidation
+const MAX_ENTRIES = 150;
+const _cache = new Map<string, { at: number; data: unknown }>();
+const _inflight = new Map<string, Promise<unknown>>();
+
+export function peekCache<T>(path: string): { data: T; fresh: boolean } | null {
+  const hit = _cache.get(path);
+  if (!hit) return null;
+  return { data: hit.data as T, fresh: Date.now() - hit.at < FRESH_MS };
+}
+
+export function invalidateCache() { _cache.clear(); }
+
+function remember(path: string, data: unknown) {
+  if (_cache.size >= MAX_ENTRIES) { const oldest = _cache.keys().next().value; if (oldest) _cache.delete(oldest); }
+  _cache.delete(path);
+  _cache.set(path, { at: Date.now(), data });
+}
+
+/** GET through the proxy, de-duplicated and cached. Concurrent callers for the same path share one request. */
+export function apiGet<T = any>(path: string): Promise<T> {
+  const running = _inflight.get(path);
+  if (running) return running as Promise<T>;
+  const p = request<T>(path, {})
+    .then((d) => { if (isCacheable(d)) remember(path, d); return d; })
+    .finally(() => { _inflight.delete(path); });
+  _inflight.set(path, p);
+  return p;
+}
+
+const isCacheable = (d: unknown) => d !== undefined && !(typeof Blob !== "undefined" && d instanceof Blob);
+
+/** JSON call through the BFF proxy. `raw: true` downloads a Blob directly from the API with a scoped short token.
+ * Plain GETs are served through the shared read cache (see above), so pages that fetch the same path on every visit
+ * do not pay a fresh round trip each time; pass `fresh: true` to force the network. Writes always go to the network
+ * and clear the cache. */
+export async function api<T = any>(path: string, init: RequestInit & { raw?: boolean; fresh?: boolean } = {}): Promise<T> {
   if (init.raw) return (await download(path)) as unknown as T;
+  const method = (init.method || "GET").toUpperCase();
+  if (method === "GET" && !init.body) {
+    if (init.fresh) _cache.delete(path);
+    else { const hit = peekCache<T>(path); if (hit?.fresh) return hit.data; }
+    return apiGet<T>(path);
+  }
+  return request<T>(path, init);
+}
+
+/** Raw call: no cache, no de-duplication. */
+async function request<T = any>(path: string, init: RequestInit & { raw?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
   if (init.body && !(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
   let res: Response;
@@ -60,6 +113,9 @@ export async function api<T = any>(path: string, init: RequestInit & { raw?: boo
   }
   if (res.status === 401) onUnauthorised();
   if (!res.ok) throw new ApiError(res.status, await readError(res));
+  // A write may change anything the user is looking at, so drop every cached read rather than guess which. Minting a
+  // short-lived transfer token changes no data, so it is excluded.
+  if ((init.method || "GET").toUpperCase() !== "GET" && !path.startsWith("/auth/short-token")) invalidateCache();
   if (res.status === 204) return undefined as T;
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return (await res.json()) as T;
@@ -97,11 +153,29 @@ export async function upload<T = any>(path: string, form: FormData): Promise<T> 
 
 /** One-click synthetic demo session. The BFF creates the server-side session and sets the HttpOnly cookie. */
 export async function signInDemo(): Promise<User> {
-  const res = await fetch("/api/session/demo", { method: "POST", credentials: "same-origin" });
+  // The API runs on a free plan that sleeps when idle: a cold start can take up to a minute, so the call is given a
+  // generous but finite budget and always ends in a message the visitor can act on, never an endless spinner.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 90_000);
+  let res: Response;
+  try {
+    res = await fetch("/api/session/demo", { method: "POST", credentials: "same-origin", cache: "no-store", signal: ctl.signal });
+  } catch (e: any) {
+    throw new ApiError(0, e?.name === "AbortError"
+      ? "The analysis API did not answer within 90 seconds. Free-plan services sleep when idle; wait a few seconds and try again."
+      : "Cannot reach the application server. Check your connection and try again.");
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new ApiError(res.status, await readError(res));
   const j = await res.json();
   setProfile(j.user);
   return j.user;
+}
+
+/** Wake the API without authenticating, so the cold start happens while the visitor reads the landing page. */
+export function warmApi(): void {
+  try { void fetch("/api/proxy/health/live", { cache: "no-store", credentials: "same-origin" }).catch(() => undefined); } catch { /* ignore */ }
 }
 
 export async function signInStaff(email: string, password: string): Promise<User> {

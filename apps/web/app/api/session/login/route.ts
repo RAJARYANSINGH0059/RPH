@@ -3,6 +3,7 @@ import { apiBase, cookieOptions, sameOrigin } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;  // the API runs on a free plan that can take 30-60 s to wake
 
 /** Protected staff sign-in. Credentials are forwarded once to the API and never stored; the JWT goes into the HttpOnly cookie. */
 export async function POST(req: Request) {

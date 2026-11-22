@@ -3,6 +3,7 @@ import { apiBase, sessionToken } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;  // the API runs on a free plan that can take 30-60 s to wake
 
 const HOP = new Set(["connection", "keep-alive", "transfer-encoding", "content-encoding", "content-length", "host"]);
 

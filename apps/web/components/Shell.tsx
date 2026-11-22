@@ -91,6 +91,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
     setUser(u);
     try { if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcome(true); } catch { /* ignore */ }
     try { const s = window.localStorage.getItem(SIDEBAR_KEY); if (s) { const j = JSON.parse(s); setCollapsed(!!j.collapsed); setOpen(j.open || {}); } } catch { /* ignore */ }
+    // Served from the shared read cache: the shell mounts on every page, so these must not be two fresh round trips per click.
     api("/health/ready").then(() => setHealth("ready")).catch(() => setHealth("down"));
     api("/cases").then((cs) => setCases(cs.slice(0, 40))).catch(() => undefined);
   }, [router]);

@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useState } from "react";
 import { I } from "@/components/icons";
-import { api, fmtTime, paise } from "@/lib/api";
+import { apiGet, fmtTime, invalidateCache, paise, peekCache } from "@/lib/api";
 import { EVIDENCE_LEVEL_HELP } from "@/lib/guide";
 
 export function State({ loading, error, empty, children, onRetry }: { loading?: boolean; error?: string | null; empty?: React.ReactNode; children?: React.ReactNode; onRetry?: () => void }) {
@@ -17,20 +17,29 @@ export function State({ loading, error, empty, children, onRetry }: { loading?: 
   return <>{children}</>;
 }
 
-/** Fetch helper for page components: returns {data, error, reload}. */
+/** Fetch helper for page components: returns {data, error, reload}.
+ * A previously loaded path renders from the in-memory cache at once and revalidates in the background, so returning to a
+ * screen is instant instead of a fresh round trip; `reload()` always refetches. */
 export function useApi<T = any>(path: string | null, deps: unknown[] = []) {
-  const [data, setData] = useState<T | null>(null);
+  const [data, setData] = useState<T | null>(() => (path ? peekCache<T>(path)?.data ?? null : null));
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!path) return;
     let alive = true;
-    setData(null); setError(null);
-    api<T>(path).then((d) => alive && setData(d)).catch((e) => alive && setError(e.message));
+    const hit = peekCache<T>(path);
+    setError(null);
+    setData(hit ? hit.data : null);
+    if (hit?.fresh && tick === 0) return;           // recent enough: no request at all
+    apiGet<T>(path).then((d) => alive && setData(d)).catch((e) => {
+      if (!alive) return;
+      if (hit) return;                              // keep showing cached data if a background revalidation fails
+      setError(e.message);
+    });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, tick, ...deps]);
-  return { data, error, reload: () => setTick((t) => t + 1), loading: !data && !error && !!path };
+  return { data, error, reload: () => { invalidateCache(); setTick((t) => t + 1); }, loading: !data && !error && !!path };
 }
 
 const CHIP: Record<string, string> = {
