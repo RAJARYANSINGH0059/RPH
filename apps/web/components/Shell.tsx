@@ -69,6 +69,28 @@ function Icon({ name, ...p }: { name: string } & React.SVGProps<SVGSVGElement>) 
 
 type ShellProps = { children: React.ReactNode; caseId?: string; caseTitle?: string; synthetic?: boolean; uploaded?: boolean; title?: string; subtitle?: string; pageKey?: string; step?: string; actions?: React.ReactNode; primary?: React.ReactNode; wide?: boolean };
 
+/** Icon for a sidebar row, chosen from the destination's own words so related features share a visual family. */
+const ICON_RULES: [RegExp, IconName][] = [
+  [/upload|intake|vault|file|package|export|ocr/, "upload"],
+  [/graph|network|chokepoint|resilience|cluster/, "graph"],
+  [/timeline|replay|history|activity|operation-timeline/, "timeline"],
+  [/report|finding|result|benchmark|model/, "report"],
+  [/source|infra|dns|domain|hosting|threat|connector|host/, "sources"],
+  [/factory|synthetic|challenge|lab|adversarial/, "factory"],
+  [/transaction|money|fund|path|bounded|account|split|claim|recovery|intervention|price/, "money"],
+  [/case|registry|workspace|cooperation|crosscase|campaign/, "cases"],
+  [/role|entit|people|holder|attribution|review|dissent/, "user"],
+  [/evidence|coverage|integrity|proof|completeness|preservation|request|ivoi|dependen/, "shield"],
+  [/hypothes|counterproof|adversary|branch|lab|what-if|scenario/, "branch"],
+  [/alert|queue|audit|guide|help|settings|privacy|rule/, "alert"],
+  [/lifecycle|twin|journey|dna/, "layers"],
+];
+function iconForChild(child: NavChild, group?: NavGroup): IconName {
+  const hay = `${child.key} ${child.path} ${child.label}`.toLowerCase();
+  for (const [re, name] of ICON_RULES) if (re.test(hay)) return name;
+  return (group?.icon as IconName) || "file";
+}
+
 export default function Shell({ children, caseId, caseTitle, synthetic, uploaded, title, subtitle, pageKey, actions, primary, wide }: ShellProps) {
   const path = usePathname();
   const router = useRouter();
@@ -127,18 +149,31 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
   const filtered: NavGroup[] = ql ? NAV.map((g) => ({ ...g, children: g.children.filter((c) => `${c.label} ${c.hint} ${g.label}`.toLowerCase().includes(ql)) })).filter((g) => g.children.length) : NAV;
   const crumbs = [{ href: "/overview", label: "Command Centre" }, ...(route?.group ? [{ href: hrefFor(route.group.children[0], activeCase), label: route.group.label }] : []), ...(activeCase && route?.child.caseScoped ? [{ href: `/cases/${activeCase}`, label: activeTitle || "Case" }] : []), ...(title ? [{ href: path, label: title }] : [])];
 
-  /** The sidebar lists every route, so Next's default prefetch would fire dozens of RSC requests on each page view and a
-   * click's own request would queue behind them. Prefetch is therefore off by default and warmed on hover/focus instead. */
+  /** Each row shows the full feature name with its plain-language description underneath, so nothing has to be guessed
+   * from an abbreviation or discovered by hovering. Prefetch stays off (the sidebar lists every route, and prefetching
+   * them all would queue a click's own request behind dozens of others); routes are warmed on hover and focus instead. */
   const NavLink = ({ child, group }: { child: NavChild; group?: NavGroup }) => {
     const href = hrefFor(child, activeCase);
     const active = route?.child.key === child.key;
     const needsCase = child.caseScoped && !activeCase;
+    const icon = iconForChild(child, group);
+    const warm = { onMouseEnter: () => router.prefetch(href), onFocus: () => router.prefetch(href) };
+    if (collapsed) {
+      return (
+        <Link prefetch={false} href={href} {...warm} aria-current={active ? "page" : undefined} title={`${child.label}: ${child.hint}`}
+          className={`flex justify-center rounded-xl px-2 py-2 transition ${active ? "bg-white/12 text-white ring-1 ring-white/10" : "text-rail-text/85 hover:bg-white/8 hover:text-white"}`}>
+          <Icon name={icon} width={16} height={16} />
+        </Link>
+      );
+    }
     return (
-      <Link prefetch={false} href={href} onMouseEnter={() => router.prefetch(href)} onFocus={() => router.prefetch(href)}
-        aria-current={active ? "page" : undefined} title={collapsed ? `${child.label} — ${child.hint}` : child.hint}
-        className={`group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition ${active ? "bg-white/12 font-semibold text-white ring-1 ring-white/10" : "text-rail-text/85 hover:bg-white/8 hover:text-white"} ${collapsed ? "justify-center" : "pl-8"}`}>
-        {collapsed ? <span className="text-[10px] font-bold">{group?.num}</span> : <span className="truncate">{child.label}</span>}
-        {!collapsed && needsCase && <span className="ml-auto rounded bg-white/10 px-1 text-[9px] uppercase text-rail-text/70" title="Select a case first">case</span>}
+      <Link prefetch={false} href={href} {...warm} aria-current={active ? "page" : undefined}
+        className={`navrow ${active ? "bg-white/12 text-white ring-1 ring-white/10" : "text-rail-text/90 hover:bg-white/8 hover:text-white"}`}>
+        <span className={`navrow-icon ${active ? "text-saffron" : "text-rail-text/70"}`}><Icon name={icon} width={14} height={14} /></span>
+        <span className="min-w-0 flex-1">
+          <span className="navrow-name">{child.label}{needsCase && <span className="ml-1.5 rounded bg-white/12 px-1 py-px align-middle text-[9px] font-bold uppercase tracking-wide text-rail-text/80" title="Select a case first">case</span>}</span>
+          <span className="navrow-desc">{child.hint}</span>
+        </span>
       </Link>
     );
   };
@@ -163,9 +198,9 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
           return (
             <div key={g.key} className="mb-0.5">
               <button type="button" onClick={() => (collapsed ? router.push(hrefFor(g.children[0], activeCase)) : toggleGroup(g.key))} aria-expanded={isOpen} aria-controls={`grp-${g.key}`} title={collapsed ? g.label : undefined}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${groupActive ? "text-white" : "text-rail-text hover:bg-white/8 hover:text-white"} ${collapsed ? "justify-center" : ""}`}>
+                className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition ${groupActive ? "text-white" : "text-rail-text hover:bg-white/8 hover:text-white"} ${collapsed ? "justify-center" : ""}`}>
                 <span className={groupActive ? "text-saffron" : "text-rail-text/70"}><Icon name={g.icon as IconName} width={16} height={16} /></span>
-                {!collapsed && <><span className="text-[10px] text-rail-text/50">{g.num}</span><span className="flex-1 truncate">{g.label}</span><I.chevron width={14} height={14} className={`transition-transform ${isOpen ? "rotate-90" : ""}`} /></>}
+                {!collapsed && <><span className="text-[10px] font-semibold tracking-[0.14em] text-rail-text/45">{g.num}</span><span className="flex-1 text-left text-[11px] font-bold uppercase leading-tight tracking-[0.08em]">{g.label}</span><I.chevron width={14} height={14} className={`transition-transform ${isOpen ? "rotate-90" : ""}`} /></>}
               </button>
               {(isOpen || collapsed) && <div id={`grp-${g.key}`} className="mb-1 flex flex-col gap-0.5">{g.children.map((c) => <NavLink key={c.key} child={c} group={g} />)}</div>}
             </div>
@@ -202,30 +237,40 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
           <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
             <div className="flex min-w-0 items-center gap-2">
               <button className="btn-icon md:hidden" onClick={() => setDrawer(true)} aria-label="Open navigation"><I.menu /></button>
-              <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1 text-xs muted sm:flex">
+              <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1 text-xs muted 2xl:flex">
                 {crumbs.map((c, i) => <span key={c.href + i} className="flex min-w-0 items-center gap-1">{i > 0 && <span className="text-line-strong">/</span>}{i < crumbs.length - 1 ? <Link href={c.href} className="truncate hover:underline">{c.label}</Link> : <span className="truncate font-medium text-ink">{c.label}</span>}</span>)}
               </nav>
             </div>
             <div className="flex items-center gap-2">
               <span className={`hidden items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold sm:inline-flex ${health === "ready" ? "border-ok/40 text-ok" : health === "down" ? "border-danger/40 text-danger" : "border-line-strong text-ink-muted"}`} title="API connection health"><span aria-hidden>{health === "ready" ? "●" : health === "down" ? "○" : "◌"}</span>{health === "ready" ? "API ready" : health === "down" ? "API unreachable" : "Checking API"}</span>
-              <Banner synthetic={synthetic} uploaded={uploaded} demo={demo} />
+              {(demo || synthetic || uploaded) && <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white ${demo || synthetic ? "bg-terracotta" : "bg-ink"}`}>{demo ? "Synthetic demo" : synthetic ? "Synthetic" : "Uploaded evidence"}</span>}
               {user && <div className="hidden items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] lg:flex" title={user.email}><I.user width={13} height={13} /><span className="max-w-[120px] truncate font-medium">{user.display_name}</span><span className="rounded bg-panel px-1 text-[10px] font-bold uppercase">{user.role.replace("_", " ")}</span></div>}
             </div>
           </div>
         </header>
         <main id="main" className={`mx-auto p-4 md:p-6 ${wide ? "" : "max-w-[1600px]"}`}>
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              {title && <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>}
-              {subtitle && <p className="mt-1 max-w-3xl text-sm muted">{subtitle}</p>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {actions}
-              {pageKey && GUIDE[pageKey] && <button className="btn-secondary" onClick={() => setHelp(true)} aria-haspopup="dialog"><I.help /> Help</button>}
-              {primary}
-            </div>
-          </div>
-          {children}
+          {title && (
+            <section className="hero rise mb-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="hero-eyebrow">
+                    {route?.group && <><span>{route.group.num}</span><span aria-hidden>·</span><span>{route.group.label}</span><span aria-hidden>·</span></>}
+                    <span className="text-accent-deep">{route?.child.label || title}</span>
+                    {caseTitle && <><span aria-hidden>·</span><span className="mono normal-case tracking-normal">{caseTitle.slice(0, 40)}</span></>}
+                  </div>
+                  <h1 className="hero-title mt-2 text-[26px] md:text-[38px]">{title.replace(/^\[SYNTHETIC\]\s*/i, "")}</h1>
+                  {subtitle && <p className="mt-2.5 max-w-3xl text-sm leading-relaxed muted">{subtitle}</p>}
+                  <div className="mt-3"><Banner synthetic={synthetic} uploaded={uploaded} demo={demo} /></div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {actions}
+                  {pageKey && GUIDE[pageKey] && <button className="btn-secondary" onClick={() => setHelp(true)} aria-haspopup="dialog"><I.help /> Help</button>}
+                  {primary}
+                </div>
+              </div>
+            </section>
+          )}
+          <div className="rise rise-1">{children}</div>
         </main>
       </div>
       {help && pageKey && GUIDE[pageKey] && <><div className="fixed inset-0 z-30 bg-ink/25" onClick={() => setHelp(false)} aria-hidden /><HelpDrawer pageKey={pageKey} onClose={() => setHelp(false)} /></>}

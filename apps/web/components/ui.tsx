@@ -64,10 +64,18 @@ export function KV({ rows, className = "" }: { rows: [string, React.ReactNode][]
   return <dl className={`grid grid-cols-[minmax(120px,max-content)_1fr] gap-x-4 gap-y-1.5 text-sm ${className}`}>{rows.map(([k, v], i) => <Fragment key={k + i}><dt className="muted">{k}</dt><dd className="min-w-0 break-words">{v ?? "—"}</dd></Fragment>)}</dl>;
 }
 
+/** Headline figure: the label reads first in small caps, the value is large enough to take in at a glance, and the hint
+ * says what the number means. Used for every summary tile so the key numbers look the same everywhere. */
 export function Stat({ label, value, hint, href, tone }: { label: string; value: React.ReactNode; hint?: string; href?: string; tone?: "warn" | "ok" | "info" }) {
   const ring = tone === "warn" ? "border-saffron/50" : tone === "ok" ? "border-ok/30" : "";
-  const body = <div className={`card h-full ${ring} ${href ? "transition hover:-translate-y-0.5 hover:shadow-md" : ""}`}><div className="label mb-0">{label}</div><div className="num mt-1 text-2xl font-bold tracking-tight">{value}</div>{hint && <div className="mt-0.5 text-xs muted">{hint}</div>}</div>;
-  return href ? <Link href={href} className="block">{body}</Link> : body;
+  const body = (
+    <div className={`metric ${ring} ${href ? "transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]" : ""}`}>
+      <div className="label mb-0">{label}</div>
+      <div className="metric-value mt-2">{value}</div>
+      {hint && <div className="mt-2 text-xs leading-snug muted">{hint}</div>}
+    </div>
+  );
+  return href ? <Link href={href} className="block h-full">{body}</Link> : body;
 }
 
 export function Copyable({ value, className = "" }: { value: string; className?: string }) {
@@ -92,7 +100,7 @@ export function Table({ cols, rows, empty = "Nothing to show.", dense }: { cols:
 }
 
 export function Section({ title, hint, children, actions, className = "" }: { title: React.ReactNode; hint?: string; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
-  return <section className={`card ${className}`}><div className="mb-3 flex flex-wrap items-start justify-between gap-2"><div><h2 className="section-title">{title}</h2>{hint && <p className="text-xs muted">{hint}</p>}</div>{actions}</div>{children}</section>;
+  return <section className={`card ${className}`}><div className="mb-3.5 flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><h2 className="section-title">{title}</h2>{hint && <p className="mt-1 max-w-3xl text-xs leading-relaxed muted">{hint}</p>}</div>{actions}</div>{children}</section>;
 }
 
 export function Limitations({ items, title = "Limitations" }: { items?: string[]; title?: string }) {

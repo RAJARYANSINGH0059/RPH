@@ -30,12 +30,17 @@
   --danger: #9b3b3b;
   --danger-soft: #f6e3e1;
   --focus: #147d83;
-  --shadow: 0 1px 2px rgba(23, 37, 54, 0.06), 0 6px 20px -12px rgba(23, 37, 54, 0.18);
-  --radius: 12px;
+  --shadow: 0 1px 2px rgba(23, 37, 54, 0.05), 0 10px 30px -18px rgba(23, 37, 54, 0.22);
+  --shadow-lift: 0 2px 4px rgba(23, 37, 54, 0.06), 0 18px 40px -24px rgba(23, 37, 54, 0.3);
+  --radius: 16px;
+  --radius-lg: 22px;
   --t: 150ms;
+  --font-sans-stack: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display-stack: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono-stack: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-html { font-feature-settings: "tnum" 1, "cv11" 1; }
+html { font-feature-settings: "tnum" 1, "cv11" 1; font-family: var(--font-sans-stack); }
 body {
   background-color: var(--canvas);
   background-image:
@@ -46,8 +51,13 @@ body {
   background-size: auto, auto, 28px 28px, 28px 28px;
   background-attachment: fixed;
   color: var(--ink);
+  font-family: var(--font-sans-stack);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Titles and headline figures carry the serif; everything operational stays in the grotesque. */
+h1, h2, .display { font-family: var(--font-display-stack); font-weight: 600; letter-spacing: -0.01em; }
+h1 { line-height: 1.08; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
 
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
@@ -55,7 +65,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @layer components {
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.15rem; box-shadow: var(--shadow); }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
   .inset { background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; }
   .btn { @apply inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50; background: var(--accent); border: 1px solid var(--accent-deep); transition: background var(--t), transform var(--t); }
@@ -69,17 +79,34 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .btn-icon:hover { background: var(--panel); color: var(--ink); }
   .input { @apply w-full rounded-lg px-3 py-2 text-sm shadow-sm; background: var(--card); border: 1px solid var(--line-strong); color: var(--ink); }
   .input::placeholder { color: var(--slate); opacity: 0.8; }
-  .label { @apply mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em]; color: var(--slate); }
-  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.12em]; color: var(--accent-deep); }
+  .label { @apply mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em]; color: var(--slate); }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.18em]; color: var(--accent-deep); }
+
+  /* Page hero: eyebrow trail, serif title, one plain-language sentence, actions. */
+  .hero { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1.35rem 1.5rem; box-shadow: var(--shadow);
+          background-image: radial-gradient(900px 260px at 100% -40%, rgba(20, 125, 131, 0.07), transparent 65%), radial-gradient(600px 220px at -10% 140%, rgba(197, 138, 54, 0.07), transparent 60%); }
+  .hero-eyebrow { @apply flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em]; color: var(--slate); }
+  .hero-title { font-family: var(--font-display-stack); font-weight: 600; letter-spacing: -0.015em; line-height: 1.06; }
+
+  /* Headline figure: small caps label above, large serif value, one line of context. */
+  .metric { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.05rem 1.15rem; box-shadow: var(--shadow); height: 100%; }
+  .metric-value { font-family: var(--font-display-stack); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.6rem); }
+  .metric-unit { font-family: var(--font-sans-stack); font-size: 0.42em; font-weight: 600; letter-spacing: 0.04em; color: var(--slate); margin-left: 0.3em; }
+
+  /* Sidebar row: full feature name with the plain-language description beneath it. */
+  .navrow { @apply flex items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition; }
+  .navrow-icon { @apply mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg; background: rgba(255, 255, 255, 0.07); }
+  .navrow-name { @apply block text-[13px] font-semibold leading-snug; }
+  .navrow-desc { @apply mt-0.5 block text-[11px] leading-snug; color: rgba(215, 224, 234, 0.62); }
   .badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
   .chip { @apply inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium; background: var(--card); border: 1px solid var(--line-strong); color: var(--ink); transition: border-color var(--t), background var(--t); }
   .chip:hover { border-color: var(--accent); }
   .chip-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 0.92em; letter-spacing: 0; }
+  .mono { font-family: var(--font-mono-stack); font-size: 0.9em; letter-spacing: 0; }
   .num { font-variant-numeric: tabular-nums; }
   table.data { @apply w-full border-collapse text-sm; }
-  table.data th { @apply sticky top-0 z-[1] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide; background: var(--panel); color: var(--slate); border-bottom: 1px solid var(--line-strong); }
-  table.data td { @apply px-3 py-2 align-top; border-bottom: 1px solid var(--line); }
+  table.data th { @apply sticky top-0 z-[1] px-3.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em]; background: var(--panel); color: var(--slate); border-bottom: 1px solid var(--line-strong); }
+  table.data td { @apply px-3.5 py-2.5 align-top; border-bottom: 1px solid var(--line); }
   table.data tbody tr { transition: background var(--t); }
   table.data tbody tr:hover { background: rgba(20, 125, 131, 0.05); }
   .callout { @apply flex gap-3 rounded-xl p-3 text-sm; background: var(--accent-soft); border: 1px solid rgba(20, 125, 131, 0.25); }
@@ -90,7 +117,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .muted { color: var(--slate); }
   .jaali { background-image: radial-gradient(circle at 1px 1px, rgba(215, 224, 234, 0.12) 1px, transparent 1.5px); background-size: 14px 14px; }
   .skeleton { @apply animate-pulse rounded-md; background: linear-gradient(90deg, var(--panel), var(--canvas-deep), var(--panel)); }
-  .section-title { @apply text-base font-semibold tracking-tight; }
+  .section-title { font-family: var(--font-display-stack); @apply text-[17px] font-semibold tracking-tight; }
   .kbd { @apply rounded px-1.5 py-0.5 text-[11px]; background: var(--panel); border: 1px solid var(--line-strong); }
   .lvl-directly_observed { background: var(--accent-soft); color: var(--accent-deep); }
   .lvl-corroborated { background: var(--ok-soft); color: var(--ok); }
@@ -135,3 +162,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; flex-wrap: wrap; }
 .tab { padding: 6px 10px; font-size: 13px; border-bottom: 2px solid transparent; color: var(--slate); }
 .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 600; }
+
+
+/* ---------- entrance motion: content settles in once, never loops; reduced motion disables it globally above ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rise-1 { animation-delay: 40ms; }
+.rise-2 { animation-delay: 80ms; }
+.rise-3 { animation-delay: 120ms; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none !important; opacity: 1 !important; transform: none !important; } }
