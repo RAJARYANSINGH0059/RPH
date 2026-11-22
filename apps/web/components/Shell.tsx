@@ -112,7 +112,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
     if (!u) { router.replace("/"); return; }
     setUser(u);
     try { if (!window.localStorage.getItem(ONBOARD_KEY)) setWelcome(true); } catch { /* ignore */ }
-    try { const s = window.localStorage.getItem(SIDEBAR_KEY); if (s) { const j = JSON.parse(s); setCollapsed(!!j.collapsed); setOpen(j.open || {}); } } catch { /* ignore */ }
+    try { const s = window.localStorage.getItem(SIDEBAR_KEY); if (s) { const j = JSON.parse(s); setCollapsed(!!j.collapsed); setOpen((o) => ({ ...(j.open || {}), ...o })); } } catch { /* ignore */ }
     // Served from the shared read cache: the shell mounts on every page, so these must not be two fresh round trips per click.
     api("/health/ready").then(() => setHealth("ready")).catch(() => setHealth("down"));
     api("/cases").then((cs) => setCases(cs.slice(0, 40))).catch(() => undefined);
@@ -197,7 +197,7 @@ export default function Shell({ children, caseId, caseTitle, synthetic, uploaded
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {filtered.map((g) => {
-          const isOpen = !!open[g.key] || !!ql;
+          const isOpen = !!open[g.key] || !!ql || route?.group?.key === g.key;
           const groupActive = route?.group?.key === g.key;
           return (
             <div key={g.key} className="mb-0.5">
